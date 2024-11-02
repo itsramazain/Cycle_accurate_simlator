@@ -31,6 +31,7 @@ struct IFIDreg{
 
 struct IDExreg {            
     bitset<32> Instruction=0;
+    bitset<6>pcplus=0;
     
     bool Branch=0;
     bool Zero=0;
@@ -38,6 +39,10 @@ struct IDExreg {
     bool MemWrite=0;
     bool PCsrc=0;
     bitset<5>rd;
+    bitset<5>rt;
+    bitset<5>rs;
+
+
 
     bool Regwwrite=0;
     bool MemToreg=0;
@@ -58,7 +63,11 @@ struct IDExreg {
 struct EXMEMreg {            
     bitset<32> Instruction=0;
     bitset<32> ALUresult=0;
+    bitset<6>pcplus=0;
     bitset<5>rd;
+    
+    bitset<5>rt;
+    bitset<5>rs;
     bool Branch=0;
     bool Zero=0;
     bool MemRead=0;
@@ -70,13 +79,16 @@ struct EXMEMreg {
 
 } ;
 
-struct MEMRBreg{            
+struct MEMRBreg{       
+    bitset<6>pcplus=0;     
     bitset<32> Instruction=0;
     bitset<5>rd;
     bitset<32> ALUresult=0;
     bitset<32> Data_Mem=0;
     bool Regwwrite=0;
     bool MemToreg=0;
+    bitset<5>rt;
+    bitset<5>rs;
     
 
 };
@@ -86,6 +98,7 @@ struct MEMRBreg{
 
 
 int main(){
+    
     bool exucte=1;
     int cycles=0;
     PC pc,next_pc;
@@ -128,7 +141,9 @@ int main(){
             writedata=MEMRB.ALUresult;
         }
         next_Rfile.write(MEMRB.rd,writedata);
-        
+        next_IDEx.pcplus=IFID.pcplus;
+        next_IDEx.SEImm=
+
 
 
         
