@@ -129,7 +129,11 @@ int main(){
 
         bitset<5> rs= (IFID.Instruction >> 21).to_ulong() & 0x1F;
         bitset<5> rt=   (IFID.Instruction  >> 16).to_ulong() & 0x1F;
+        bitset<5> rd = (IFID.Instruction >> 11).to_ulong() & 0x1F;
 
+        next_IDEx.rs=rs;
+        next_IDEx.rt=rs;
+        next_IDEx.rt=rd;
         next_IDEx.Instruction=IFID.Instruction;
         next_IDEx.RSData=Rfile.readRS(rs);
         next_IDEx.RTData=Rfile.readRS(rt);
@@ -142,7 +146,12 @@ int main(){
         }
         next_Rfile.write(MEMRB.rd,writedata);
         next_IDEx.pcplus=IFID.pcplus;
-        next_IDEx.SEImm=
+        if (static_cast<long>(next_IDEx.RSData.to_ulong()) - static_cast<long>(next_IDEx.RTData.to_ulong())){
+                next_IDEx.Zero=1;
+        }else{
+            next_IDEx.Zero=0;
+        }
+        next_IDEx.SEImm=;
 
 
 
