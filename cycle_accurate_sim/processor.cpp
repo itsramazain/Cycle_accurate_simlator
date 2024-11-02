@@ -17,7 +17,7 @@ RF next_Rfile;
 
 using namespace std;
 struct PC{            
-    bitset<32> PCVlue=0;
+    bitset<6> PCVlue=0;
     
 } ;
 
@@ -32,13 +32,14 @@ struct IFIDreg{
 struct IDExreg {            
     bitset<32> Instruction=0;
     
-    bitset<1>Branch=0;
-    bitset<1>Zero=0;
-    bitset<1>MemRead=0;
-    bitset<1>MemWrite=0;
+    bool Branch=0;
+    bool Zero=0;
+    bool MemRead=0;
+    bool MemWrite=0;
+    bool PCsrc=0;
 
-    bitset<1> Regwwrite=0;
-    bitset<1> MemToreg=0;
+    bool Regwwrite=0;
+    bool MemToreg=0;
 
     
     bitset<32>RSData=0;
@@ -46,9 +47,9 @@ struct IDExreg {
     bitset<32> SEImm=0;
     bitset<5> RDadd=0;
     
-    bitset<1>RegDist=0;
-    bitset<1>ALUSrc=0;
-    bitset<3>ALUOP=0;
+    bool RegDist=0;
+    bool ALUSrc=0;
+    int ALUOP=0;
 
 } ;
 
@@ -57,13 +58,14 @@ struct EXMEMreg {
     bitset<32> Instruction=0;
     bitset<32> ALUresult=0;
 
-    bitset<1>Branch=0;
-    bitset<1>Zero=0;
-    bitset<1>MemRead=0;
-    bitset<1>MemWrite=0;
+    bool Branch=0;
+    bool Zero=0;
+    bool MemRead=0;
+    bool MemWrite=0;
+    
 
-    bitset<1> Regwwrite=0;
-    bitset<1> MemToreg=0;
+    bool Regwwrite=0;
+    bool MemToreg=0;
 
 } ;
 
@@ -72,9 +74,8 @@ struct MEMRBreg{
 
     bitset<32> ALUresult=0;
     bitset<32> Data_Mem=0;
-
-    bitset<1> Regwwrite=0;
-    bitset<1> MemToreg=0;
+    bool Regwwrite=0;
+    bool MemToreg=0;
     
 
 };
@@ -90,11 +91,29 @@ int main(){
     IFIDreg IFID,next_IFID;
     IDExreg IDEx,next_IDEx;
     MEMRBreg MEMRB,next_MEMRB;
+    EXMEMreg EXMEM,next_EXMEM;
 
     while(exucte){
         exucte=INSTRUCTION_MEM.stop();
 
         //fitch state
+        bitset<6> pcp=std::bitset<6>((pc.PCVlue.to_ulong() + 1) % 64);
+        if (EXMEM.Branch & EXMEM.Zero){
+            next_pc.PCVlue = pcp;
+
+        } else{
+            next_pc.PCVlue = EXMEM.ALUresult.to_ulong() & 0x3F;
+        }
+
+        next_IFID.Instruction=INSTRUCTION_MEM.read(pc.PCVlue);
+        next_IFID.pcplus=pcp;
+
+        //decode
+
+
+
+
+
 
 
 
