@@ -96,6 +96,23 @@ struct MEMRBreg{
 
 
 
+bitset<32> signExtendImmediate(std::bitset<32> instruction) {
+    // Extract the first 16 bits (immediate field)
+    int16_t immediate = instruction.to_ulong() & 0xFFFF;
+
+    // Check if bit 15 (sign bit) is set
+    int32_t extendedValue;
+    if (immediate & 0x8000) { // If bit 15 is 1 (negative number)
+        // Sign-extend to 32 bits by filling with 1's
+        extendedValue = static_cast<int32_t>(immediate | 0xFFFF0000);
+    } else {
+        // Zero-extend: simply cast the positive value
+        extendedValue = static_cast<int32_t>(immediate);
+    }
+
+    // Convert the 32-bit signed integer to a bitset<32>
+    return std::bitset<32>(static_cast<uint32_t>(extendedValue));
+}
 
 int main(){
     
@@ -151,7 +168,8 @@ int main(){
         }else{
             next_IDEx.Zero=0;
         }
-        next_IDEx.SEImm=;
+        next_IDEx.SEImm=signExtendImmediate(IFID.Instruction);
+        
 
 
 
