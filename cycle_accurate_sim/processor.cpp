@@ -97,7 +97,7 @@ int main(){
         exucte=INSTRUCTION_MEM.stop();
 
         //fitch state
-        bitset<6> pcp=std::bitset<6>((pc.PCVlue.to_ulong() + 1) % 64);
+        bitset<6> pcp=bitset<6>((pc.PCVlue.to_ulong() + 1) % 64);
         if (EXMEM.Branch & EXMEM.Zero){
             next_pc.PCVlue = pcp;
 
@@ -109,6 +109,13 @@ int main(){
         next_IFID.pcplus=pcp;
 
         //decode
+
+        bitset<6> opcode= bitset<6> (shiftbits(IFID.instruction, 26));
+        bitset<5> rs= EXMEM.;
+        bitset<5> rt=       
+
+
+
 
 
 
