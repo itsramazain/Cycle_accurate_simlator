@@ -110,9 +110,17 @@ int main(){
 
         //decode
 
-        bitset<6> opcode= bitset<6> (shiftbits(IFID.instruction, 26));
-        bitset<5> rs= EXMEM.;
-        bitset<5> rt=       
+        bitset<6> opcode= ( IFID.Instruction>> 26).to_ulong();
+        
+
+        bitset<5> rs= (IFID.Instruction >> 21).to_ulong() & 0x1F;
+        bitset<5> rt=   (IFID.Instruction  >> 16).to_ulong() & 0x1F;
+
+        next_IDEx.Instruction=IFID.Instruction;
+        next_IDEx.RSData=;
+        next_IDEx.RTData=;
+
+
 
 
 
