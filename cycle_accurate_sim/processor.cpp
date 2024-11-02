@@ -4,116 +4,115 @@
 #include <bitset>
 #include <fstream>
 #include <array>
-#include "Data_memory.cpp"
-#include "registerfile.cpp"
-#include "Instruction_memory.cpp"
+#include"Data_memory.cpp"
+#include"Instruction_memory.cpp"
+#include"registerfile.cpp"
 
+Data_memory DATA_MEM;
+Data_memory next_DATA_MEM;
+Instruction_Memory INSTRUCTION_MEM;
+Instruction_Memory next_INSTRUCTION_MEM;
+RF Rfile;
+RF next_Rfile;
 
 using namespace std;
+struct PC{            
+    bitset<32> PCVlue=0;
+    
+} ;
 
-struct {            
-    bitset<32> currentPC = 0;
-    bitset<32> nextPC = 0;
-} PC;
 
-struct {            
-    bitset<32> currentInstruction = 0;
-    bitset<32> nextInstruction = 0;
+struct IFIDreg{            
+    bitset<32> Instruction=0;
+    bitset<6>pcplus=0;
+} ;
 
-    bitset<6> currentPcPlus4 = 0;
-    bitset<6> nextPcPlus4 = 0;
-} IFIDreg;
 
-struct {            
-    bitset<32> currentInstruction = 0;
-    bitset<32> nextInstruction = 0;
 
-    bitset<1> currentBranch = 0;
-    bitset<1> nextBranch = 0;
+struct IDExreg {            
+    bitset<32> Instruction=0;
+    
+    bitset<1>Branch=0;
+    bitset<1>Zero=0;
+    bitset<1>MemRead=0;
+    bitset<1>MemWrite=0;
 
-    bitset<1> currentZero = 0;
-    bitset<1> nextZero = 0;
+    bitset<1> Regwwrite=0;
+    bitset<1> MemToreg=0;
 
-    bitset<1> currentMemRead = 0;
-    bitset<1> nextMemRead = 0;
+    
+    bitset<32>RSData=0;
+    bitset<32>RTData=0;
+    bitset<32> SEImm=0;
+    bitset<5> RDadd=0;
+    
+    bitset<1>RegDist=0;
+    bitset<1>ALUSrc=0;
+    bitset<3>ALUOP=0;
 
-    bitset<1> currentMemWrite = 0;
-    bitset<1> nextMemWrite = 0;
+} ;
 
-    bitset<1> currentRegwwrite = 0;
-    bitset<1> nextRegwwrite = 0;
 
-    bitset<1> currentMemToreg = 0;
-    bitset<1> nextMemToreg = 0;
+struct EXMEMreg {            
+    bitset<32> Instruction=0;
+    bitset<32> ALUresult=0;
 
-    bitset<32> currentRSData = 0;
-    bitset<32> nextRSData = 0;
+    bitset<1>Branch=0;
+    bitset<1>Zero=0;
+    bitset<1>MemRead=0;
+    bitset<1>MemWrite=0;
 
-    bitset<32> currentRTData = 0;
-    bitset<32> nextRTData = 0;
+    bitset<1> Regwwrite=0;
+    bitset<1> MemToreg=0;
 
-    bitset<32> currentSEImm = 0;
-    bitset<32> nextSEImm = 0;
+} ;
 
-    bitset<5> currentRDadd = 0;
-    bitset<5> nextRDadd = 0;
+struct MEMRBreg{            
+    bitset<32> Instruction=0;
 
-    bitset<1> currentRegDist = 0;
-    bitset<1> nextRegDist = 0;
+    bitset<32> ALUresult=0;
+    bitset<32> Data_Mem=0;
 
-    bitset<1> currentALUSrc = 0;
-    bitset<1> nextALUSrc = 0;
+    bitset<1> Regwwrite=0;
+    bitset<1> MemToreg=0;
+    
 
-    bitset<3> currentALUOP = 0;
-    bitset<3> nextALUOP = 0;
-} IDExreg;
+};
 
-struct {            
-    bitset<32> currentInstruction = 0;
-    bitset<32> nextInstruction = 0;
 
-    bitset<32> currentALUresult = 0;
-    bitset<32> nextALUresult = 0;
 
-    bitset<1> currentBranch = 0;
-    bitset<1> nextBranch = 0;
 
-    bitset<1> currentZero = 0;
-    bitset<1> nextZero = 0;
 
-    bitset<1> currentMemRead = 0;
-    bitset<1> nextMemRead = 0;
+int main(){
+    bool exucte=1;
+    int cycles=0;
+    PC pc,next_pc;
+    IFIDreg IFID,next_IFID;
+    IDExreg IDEx,next_IDEx;
+    MEMRBreg MEMRB,next_MEMRB;
 
-    bitset<1> currentMemWrite = 0;
-    bitset<1> nextMemWrite = 0;
+    while(exucte){
+        exucte=INSTRUCTION_MEM.stop();
 
-    bitset<1> currentRegwwrite = 0;
-    bitset<1> nextRegwwrite = 0;
+        //fitch state
 
-    bitset<1> currentMemToreg = 0;
-    bitset<1> nextMemToreg = 0;
-} EXMEMreg;
 
-struct {            
-    bitset<32> currentInstruction = 0;
-    bitset<32> nextInstruction = 0;
 
-    bitset<32> currentALUresult = 0;
-    bitset<32> nextALUresult = 0;
 
-    bitset<32> currentDataMem = 0;
-    bitset<32> nextDataMem = 0;
+        
 
-    bitset<1> currentRegwwrite = 0;
-    bitset<1> nextRegwwrite = 0;
 
-    bitset<1> currentMemToreg = 0;
-    bitset<1> nextMemToreg = 0;
-} MEMRBreg;
 
-int main() {
-    while (true) {
-        // Simulation logic goes here
-    }   
-    return 0;
+    }
+
+
+
+          
+return 0;
 }
+
+
+
+
+
+
