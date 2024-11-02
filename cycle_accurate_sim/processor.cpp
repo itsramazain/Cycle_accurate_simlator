@@ -117,8 +117,9 @@ int main(){
         bitset<5> rt=   (IFID.Instruction  >> 16).to_ulong() & 0x1F;
 
         next_IDEx.Instruction=IFID.Instruction;
-        next_IDEx.RSData=;
-        next_IDEx.RTData=;
+        next_IDEx.RSData=Rfile.readRS(rs);
+        next_IDEx.RTData=Rfile.readRS(rt);
+        
 
 
 
