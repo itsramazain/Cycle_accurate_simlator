@@ -37,6 +37,7 @@ struct IDExreg {
     bool MemRead=0;
     bool MemWrite=0;
     bool PCsrc=0;
+    bitset<5>rd;
 
     bool Regwwrite=0;
     bool MemToreg=0;
@@ -57,7 +58,7 @@ struct IDExreg {
 struct EXMEMreg {            
     bitset<32> Instruction=0;
     bitset<32> ALUresult=0;
-
+    bitset<5>rd;
     bool Branch=0;
     bool Zero=0;
     bool MemRead=0;
@@ -71,7 +72,7 @@ struct EXMEMreg {
 
 struct MEMRBreg{            
     bitset<32> Instruction=0;
-
+    bitset<5>rd;
     bitset<32> ALUresult=0;
     bitset<32> Data_Mem=0;
     bool Regwwrite=0;
@@ -119,6 +120,17 @@ int main(){
         next_IDEx.Instruction=IFID.Instruction;
         next_IDEx.RSData=Rfile.readRS(rs);
         next_IDEx.RTData=Rfile.readRS(rt);
+        bitset<32> writedata;
+        if(MEMRB.MemToreg==1){
+            writedata=MEMRB.Data_Mem;
+
+        }else{
+            writedata=MEMRB.ALUresult;
+        }
+        next_Rfile.write(MEMRB.rd,writedata);
+        
+
+
         
 
 
