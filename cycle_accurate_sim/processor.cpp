@@ -165,37 +165,98 @@ int main(){
 
         if (opcode == 0x00000000) {
         if (funct == 0x20) {
-            std::cout << "Instruction is add" << std::endl;
+            cout << "Instruction is add" << std::endl;
         } else if (funct == 0x22) {
-            std::cout << "Instruction is sub" << std::endl;
+            cout << "Instruction is sub" << std::endl;
         } else if (funct == 0x24) {
-            std::cout << "Instruction is and" << std::endl;
+            cout << "Instruction is and" << std::endl;
         } else if (funct == 0x25) {
-            std::cout << "Instruction is or" << std::endl;
+            cout << "Instruction is or" << std::endl;
         } else if (funct == 0x2A) {
-            std::cout << "Instruction is slt" << std::endl;
+            cout << "Instruction is slt" << std::endl;
         } else {
-            std::cout << "Unknown R-type instruction" << std::endl;
+            cout << "Unknown R-type instruction" << std::endl;
         }
         } else if (opcode == 0x23) {
-            std::cout << "Instruction is lw (load word)" << std::endl;
+            cout << "Instruction is lw (load word)" << std::endl;
         } else if (opcode == 0x2B) {
-            std::cout << "Instruction is sw (store word)" << std::endl;
+            cout << "Instruction is sw (store word)" << std::endl;
         } else if (opcode == 0x04) {
-            std::cout << "Instruction is beq (branch on equal)" << std::endl;
+            cout << "Instruction is beq (branch on equal)" << std::endl;
         } else {
-            std::cout << "Unknown instruction" << std::endl;
+            cout << "Unknown instruction" << std::endl;
         }
 
 
         //leave it for bader to do it
 
 
+
+        //excute stage
+        bitset<32>rsdata=IDEx.RSData;
+        bitset<32>rtdata=IDEx.RTData;
+
+        if (IDEx.ALUSrc==1){
+            rtdata=IDEx.SEImm;
+        }
+
+        if (IDEx.ALUOP=0x0){
+            next_EXMEM.ALUresult=bitset<32>((rsdata.to_ulong() + rtdata.to_ulong()) % 64);
+        }else if(IDEx.ALUOP=0x1){
+              next_EXMEM.ALUresult=bitset<32>((rsdata.to_ulong() - rtdata.to_ulong()) % 64);
+
+        }else if(IDEx.ALUOP=0x2){
+              next_EXMEM.ALUresult=bitset<32>((rsdata.to_ulong() & rtdata.to_ulong()) % 64);
+
+        }else if(IDEx.ALUOP=0x3){
+               if (rsdata.to_ulong() < rtdata.to_ulong()){
+                next_EXMEM.ALUresult=1;
+               }else{
+                next_EXMEM.ALUresult=0;
+               }
+
+        }
+        //there should be some contro, signals passed to the exme register
+
+        next_EXMEM.Instruction=IDEx.Instruction;
+        next_EXMEM.rd=IDEx.rd;
+        next_EXMEM.rs=IDEx.rs;
+        next_EXMEM.rt=IDEx.rt;
+
+        //there has to be more stuff that i forgot about!!
         
+        //memory stage
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
         
+        pc=next_pc;
+        INSTRUCTION_MEM=next_INSTRUCTION_MEM;
+        DATA_MEM=next_DATA_MEM;
+        IFID=next_IFID;
+        IDEx=next_IDEx;
+        EXMEM=next_EXMEM;
+        MEMRB=next_MEMRB;
+        //print to a log file
+        cycles++;
+
 }
 
 
