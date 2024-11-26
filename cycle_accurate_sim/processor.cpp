@@ -135,6 +135,18 @@ void controlUnit(
     // Convert opcode to integer for easier comparison
     uint8_t opCodeInt = static_cast<uint8_t>(opCode.to_ulong());
 
+    // Reset all control signals
+    RegDst = false;
+    BranchEqual = false;
+    MemReadEn = false;
+    MemtoReg = false;
+    ALUOp = 0b000;
+    MemWriteEn = false;
+    RegWriteEn = false;
+    ALUSrc = false;
+    Jump = false;
+    BranchNotEqual = false;
+
     // Generate control signals based on the opcode
     switch (opCodeInt) {
         case _RType:
@@ -207,17 +219,7 @@ void controlUnit(
             break;
 
         default:
-            // Default reset of control signals
-            RegDst = false;
-            BranchEqual = false;
-            MemReadEn = false;
-            MemtoReg = false;
-            ALUOp = 0b000;
-            MemWriteEn = false;
-            RegWriteEn = false;
-            ALUSrc = false;
-            Jump = false;
-            BranchNotEqual = false;
+            // All signals are already reset at the start
             break;
     }
 }
@@ -398,7 +400,7 @@ void forwardingUnit(
 
 
 struct PC{
-    bitset<6>pc=111111;            
+    bitset<6>pc=0b111111;            
     
     
 } ;
@@ -414,7 +416,7 @@ struct IFIDreg{
 
 struct IDExreg {            
     bool branch=0;
-    bool opCode=0;
+    bitset<6>opCode=0;
     bool RegDst=0;
     bool BranchEqual=0; 
     bool MemReadEn=0;
@@ -499,7 +501,7 @@ std::bitset<6> calculateTarget(const std::bitset<6> pcplus1, const std::bitset<6
 
 
 
-int i=0;
+int i=1;
 void writePipelineRegistersToFile(
     const PC& pc,
     const IFIDreg& IFID,
@@ -618,7 +620,7 @@ int main(){
 
 
     
-    while(i<5){
+    while(i<7){
         
         writePipelineRegistersToFile(pc, IFID, IDEx, EXMEM, MEMRB,Rfile,DATA_MEM, "log.txt",i  );
         bitset<5> rs=bitset<5>((IFID.instruction.to_ulong() >> 21) & 0b11111);
@@ -643,7 +645,7 @@ int main(){
         
         next_IFID.pcplus1=pcplus1;
         if (IDIF_reset){
-            next_IFID.instruction=INSTRUCTION_MEM.read(pc.pc);
+            next_IFID.instruction=INSTRUCTION_MEM.read(pcplus1);
         }else{
             IFID.instruction=0;
             next_IFID.instruction=0;
@@ -662,17 +664,23 @@ int main(){
         }
         
         bitset<6> opcode, functionField;
-        bool opCode,RegDst,BranchEqual, MemReadEn,MemtoReg, MemWriteEn, RegWriteEn,ALUSrc, Jump, BranchNotEqual;
+        opcode = bitset<6>((IFID.instruction.to_ulong() >> 26) & 0b111111);
+        functionField=bitset<6>(IFID.instruction.to_ulong() & 0b111111);
+
+
+        bool RegDst,BranchEqual, MemReadEn,MemtoReg, MemWriteEn, RegWriteEn,ALUSrc, Jump, BranchNotEqual;
         
         bitset<3> ALUOp;
         
         next_IDEx.branch=zero&BranchEqual;
-
-        controlUnit(opCode,RegDst,BranchEqual, MemReadEn,MemtoReg, ALUOp,MemWriteEn, RegWriteEn,ALUSrc, Jump, BranchNotEqual);
-
+        cout<<"oprcode" <<opcode<<endl;
+        controlUnit(opcode,RegDst,BranchEqual, MemReadEn,MemtoReg, ALUOp,MemWriteEn, RegWriteEn,ALUSrc, Jump, BranchNotEqual);
+        cout<< IDEx.Jump<<endl;
+        cout<< Jump<<endl;
+        cout<< "Cycle"<<i<<endl;
 
          if (nopSel){
-         next_IDEx.opCode=opCode;
+         next_IDEx.opCode=opcode;
          next_IDEx.RegDst=RegDst;
          next_IDEx.BranchEqual=BranchEqual; 
          next_IDEx.MemReadEn=MemReadEn;
