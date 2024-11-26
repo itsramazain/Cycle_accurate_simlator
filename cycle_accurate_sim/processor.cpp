@@ -18,7 +18,7 @@ RF next_Rfile;
 using namespace std;
 
 
-const int DATA_WIDTH = 32;
+
 
 // Operation parameters
 enum ALUOperations {
@@ -30,27 +30,28 @@ enum ALUOperations {
     XOR  = 0b0101,
     NOR  = 0b0110,
     SLL  = 0b0111,
-    SRL  = 0b1111
+    SRL  = 0b1000,
+    SGT  = 0b1001
 };
 
 #include <bitset>
 #include <cstdint>
 
 const int DATA_WIDTH = 32;
-const int SEL_WIDTH = 5;
+const int SEL_WIDTH = 4;
 
 // ALU function
 std::bitset<DATA_WIDTH> alu(
-    const std::bitset<DATA_WIDTH> operand1,
-    const std::bitset<DATA_WIDTH> operand2,
-    const std::bitset<SEL_WIDTH> opSel,
-    uint8_t shamt
+     std::bitset<DATA_WIDTH> operand1,
+     std::bitset<DATA_WIDTH> operand2,
+     std::bitset<SEL_WIDTH> opSel,
+    std::bitset<5> shamt
 ) {
     std::bitset<DATA_WIDTH> result;
 
     // Convert opSel to an integer value for easier comparison
     uint8_t opCode = static_cast<uint8_t>(opSel.to_ulong());
-
+    uint8_t shiftAmount = static_cast<uint8_t>(shamt.to_ulong());
     switch (opCode) {
         case 0b0000: { // ADD
             uint32_t op1 = operand1.to_ulong();
@@ -79,13 +80,13 @@ std::bitset<DATA_WIDTH> alu(
         case 0b0110: // NOR
             result = ~(operand1 | operand2);
             break;
-        case 0b0111: // SLL
-            result = operand1 << shamt;
+        case 0b0111: // SLL (Shift Left Logical)
+            result = operand1 << shiftAmount;
             break;
-        case 0b1111: // SRL
-            result = operand1 >> shamt;
+        case 0b1000: // SRL (Shift Right Logical)
+            result = operand1 >> shiftAmount;
             break;
-        case 0b1000: { // SGT (Set Greater Than)
+        case 0b1001: { // SGT (Set Greater Than)
             int32_t op1 = static_cast<int32_t>(operand1.to_ulong());
             int32_t op2 = static_cast<int32_t>(operand2.to_ulong());
             result = (op1 > op2) ? 1 : 0;
@@ -101,14 +102,6 @@ std::bitset<DATA_WIDTH> alu(
 
     return result;
 }
-
-
-
-
-
-
-
-
 
 
 // Define constants for the opcode and funct codes
@@ -236,16 +229,16 @@ void controlUnit(
 #include <cstdint>
 
 // Define constants for ALU operations (opSel)
-const uint8_t _ADD = 0b00000;
-const uint8_t _SUB = 0b00001;
-const uint8_t _AND = 0b00010;
-const uint8_t _OR = 0b00011;
-const uint8_t _SLT = 0b00100;
-const uint8_t _XOR = 0b00101;
-const uint8_t _NOR = 0b00110;
-const uint8_t _SLL = 0b00111;
-const uint8_t _SRL = 0b11111;
-const uint8_t _SGT = 0b01000;
+const uint8_t _ADD = 0b0000;
+const uint8_t _SUB = 0b0001;
+const uint8_t _AND = 0b0010;
+const uint8_t _OR = 0b0011;
+const uint8_t _SLT = 0b0100;
+const uint8_t _XOR = 0b0101;
+const uint8_t _NOR = 0b0110;
+const uint8_t _SLL = 0b0111;
+const uint8_t _SRL = 0b1000;
+const uint8_t _SGT = 0b1001;
 const uint8_t _DONTCARE = 0b11111;
 
 // Define constants for function field
@@ -262,10 +255,10 @@ const uint8_t _xor_ = 0x26;
 const uint8_t _sgt_ = 0x2B;
 
 void ALUcontrol(
-    const std::bitset<3>& ALUOp,   // 3-bit ALUOp input
-    const std::bitset<6>& funct,   // 6-bit funct input
+    std::bitset<3> ALUOp,   // 3-bit ALUOp input
+    std::bitset<6> funct,   // 6-bit funct input
     bool& JumpReg,                 // Output: JumpReg signal
-    std::bitset<5>& opSel          // Output: ALU operation selection
+    std::bitset<4>& opSel          // Output: ALU operation selection
 ) {
     // Reset outputs
     JumpReg = false;
@@ -365,14 +358,14 @@ void detectHazard(
 
 // Forwarding Unit Function
 void forwardingUnit(
-    const std::bitset<5> ID_EX_rs,     // Source register 1
-    const std::bitset<5> ID_EX_rt,     // Source register 2
-    const std::bitset<5> EX_MEM_rd,    // Destination register from EX/MEM
-    const std::bitset<5> MEM_WB_rd,    // Destination register from MEM/WB
+    std::bitset<5> ID_EX_rs,     // Source register 1
+    std::bitset<5> ID_EX_rt,     // Source register 2
+    std::bitset<5> EX_MEM_rd,    // Destination register from EX/MEM
+    std::bitset<5> MEM_WB_rd,    // Destination register from MEM/WB
     bool EX_MEM_RegWrite,               // RegWrite signal from EX/MEM
     bool MEM_WB_RegWrite,               // RegWrite signal from MEM/WB
-    std::bitset<2> ForwardA,           // Forwarding signal for ALU input A
-    std::bitset<2> ForwardB            // Forwarding signal for ALU input B
+    std::bitset<2>& ForwardA,           // Forwarding signal for ALU input A
+    std::bitset<2>& ForwardB            // Forwarding signal for ALU input B
 ) {
     // Reset forwarding signals
     ForwardA = 0b00;
@@ -438,16 +431,40 @@ struct IDExreg {
     bitset<32> Eximm=0;
     bitset<6> funct=0;
     bitset<5> shamnt=0;
+    bitset<32>ReadData1;
+    bitset<32>ReadData2;
 
 } ;
 
 
-struct EXMEMreg {            
+struct EXMEMreg {
+    bool RegWrite=0;
+    bool MemReadEn=0;
+    bool MemWriteEn=0; 
+    bitset<5>rd=0;
+    bitset<5>rt=0;   
+    bool MemtoReg;
+    bitset<32>ALURESULT; 
+    bitset<32>ReadData2;
+    bool RegDst=0;
+    
+
     
 
 } ;
 
-struct MEMRBreg{       
+struct MEMRBreg{  
+    
+    bool RegWrite=0;
+    bitset<5>rd=0;
+    bitset<5>rt=0;
+    bool MemtoReg;
+    bitset<32>memData;
+    bitset<32>ALUresult; 
+    bool RegDst=0;
+
+    
+         
     
     
 
@@ -479,6 +496,113 @@ std::bitset<6> calculateTarget(const std::bitset<6> pcplus1, const std::bitset<6
     return std::bitset<6>(result);
 }
 
+
+
+
+int i=0;
+void writePipelineRegistersToFile(
+    const PC& pc,
+    const IFIDreg& IFID,
+    const IDExreg& IDEx,
+    const EXMEMreg& EXMEM,
+    const MEMRBreg& MEMRB,
+    RF& registerFile,
+    Data_memory& dataMemory,
+    const std::string filename,
+    const int& i 
+) {
+    
+
+    
+    std::ofstream outFile(filename, std::ios::app); // Open file in append mode
+    
+    if (!outFile) {
+        std::cerr << "Error: Unable to open file " << filename << " for writing." << std::endl;
+        return;
+    }
+
+    outFile << "----------------------------" << std::endl;
+    outFile << "Cycle number:";
+    outFile << "#" << i << std::endl;
+    outFile << "----------------------------" << std::endl;
+    outFile << "----------------------------" << std::endl;
+    outFile << "Pipeline Register Contents" << std::endl;
+    outFile << "----------------------------" << std::endl;
+
+    // Write PC
+    outFile << "PC: " << pc.pc << std::endl;
+
+    // Write IF/ID Register
+    outFile << "IF/ID Register:" << std::endl;
+    outFile << "  PC+1: " << IFID.pcplus1 << std::endl;
+    outFile << "  Instruction: " << IFID.instruction << std::endl;
+
+    // Write ID/EX Register
+    outFile << "ID/EX Register:" << std::endl;
+    outFile << "  Branch: " << IDEx.branch << std::endl;
+    outFile << "  OpCode: " << IDEx.opCode << std::endl;
+    outFile << "  RegDst: " << IDEx.RegDst << std::endl;
+    outFile << "  BranchEqual: " << IDEx.BranchEqual << std::endl;
+    outFile << "  MemReadEn: " << IDEx.MemReadEn << std::endl;
+    outFile << "  MemtoReg: " << IDEx.MemtoReg << std::endl;
+    outFile << "  MemWriteEn: " << IDEx.MemWriteEn << std::endl;
+    outFile << "  RegWriteEn: " << IDEx.RegWriteEn << std::endl;
+    outFile << "  ALUSrc: " << IDEx.ALUSrc << std::endl;
+    outFile << "  Jump: " << IDEx.Jump << std::endl;
+    outFile << "  BranchNotEqual: " << IDEx.BranchNotEqual << std::endl;
+    outFile << "  ALUOp: " << IDEx.ALUOp << std::endl;
+    outFile << "  RS: " << IDEx.rs << std::endl;
+    outFile << "  RT: " << IDEx.rt << std::endl;
+    outFile << "  RD: " << IDEx.rd << std::endl;
+    outFile << "  Immediate (Eximm): " << IDEx.Eximm << std::endl;
+    outFile << "  Function: " << IDEx.funct << std::endl;
+    outFile << "  Shamt: " << IDEx.shamnt << std::endl;
+    outFile << "  ReadData1: " << IDEx.ReadData1 << std::endl;
+    outFile << "  ReadData2: " << IDEx.ReadData2 << std::endl;
+
+    // Write EX/MEM Register
+    outFile << "EX/MEM Register:" << std::endl;
+    outFile << "  RegWrite: " << EXMEM.RegWrite << std::endl;
+    outFile << "  MemReadEn: " << EXMEM.MemReadEn << std::endl;
+    outFile << "  MemWriteEn: " << EXMEM.MemWriteEn << std::endl;
+    outFile << "  RD: " << EXMEM.rd << std::endl;
+    outFile << "  RT: " << EXMEM.rt << std::endl;
+    outFile << "  MemtoReg: " << EXMEM.MemtoReg << std::endl;
+    outFile << "  ALUResult: " << EXMEM.ALURESULT << std::endl;
+    outFile << "  ReadData2: " << EXMEM.ReadData2 << std::endl;
+    outFile << "  RegDst: " << EXMEM.RegDst << std::endl;
+
+    // Write MEM/WB Register
+    outFile << "MEM/WB Register:" << std::endl;
+    outFile << "  RegWrite: " << MEMRB.RegWrite << std::endl;
+    outFile << "  RD: " << MEMRB.rd << std::endl;
+    outFile << "  RT: " << MEMRB.rt << std::endl;
+    outFile << "  MemtoReg: " << MEMRB.MemtoReg << std::endl;
+    outFile << "  MemData: " << MEMRB.memData << std::endl;
+    outFile << "  ALUResult: " << MEMRB.ALUresult << std::endl;
+    outFile << "  RegDst: " << MEMRB.RegDst << std::endl;
+
+    outFile << "----------------------------" << std::endl;
+    // Write the register file contents
+    outFile << "Register File Contents:" << std::endl;
+    for (int i = 0; i < 32; i++) {
+        outFile << "R[" << i << "]: " << registerFile.readRS(bitset<5>(i)) << std::endl;
+    }
+    outFile << "----------------------------" << std::endl;
+    // Write the data memory contents
+    outFile << "Data Memory Contents:" << std::endl;
+    for (int i = 0; i < 64; i++) {
+        outFile << "Mem[" << i << "]: " << dataMemory.read(bitset<6>(i)) << std::endl;
+    }
+
+    outFile << "----------------------------" << std::endl;
+
+    outFile.close();
+}
+
+
+
+
 int main(){
     
     bool exucte=1;
@@ -488,12 +612,15 @@ int main(){
     IDExreg IDEx,next_IDEx;
     MEMRBreg MEMRB,next_MEMRB;
     EXMEMreg EXMEM,next_EXMEM;
-    int i=0;
-    bool PCwrite;
-    bool IFID_Write;
-    bool nopSel;
-    bool IDIF_reset;
+
+     
+    
+
+
+    
     while(i<5){
+        
+        writePipelineRegistersToFile(pc, IFID, IDEx, EXMEM, MEMRB,Rfile,DATA_MEM, "log.txt",i  );
         bitset<5> rs=bitset<5>((IFID.instruction.to_ulong() >> 21) & 0b11111);
         bitset<5> rt=bitset<5>((IFID.instruction.to_ulong() >> 16) & 0b11111);
         bitset<5> rd=bitset<5>((IFID.instruction.to_ulong() >> 11) & 0b11111);
@@ -508,7 +635,7 @@ int main(){
         bitset<16> imm16=IFID.instruction.to_ulong() & 0b1111111111111111;
         bitset<32>Eximm=signExtendImmediate(IFID.instruction);
         if (IDEx.branch){
-            nextpc=calculateTarget(IFID.pcplus1,(imm6));
+            nextpc=calculateTarget(IFID.pcplus1,imm6);
         }
         if (PCwrite){
         next_pc.pc=nextpc;
@@ -519,6 +646,7 @@ int main(){
             next_IFID.instruction=INSTRUCTION_MEM.read(pc.pc);
         }else{
             IFID.instruction=0;
+            next_IFID.instruction=0;
         }
         //decode
         
@@ -543,7 +671,7 @@ int main(){
         controlUnit(opCode,RegDst,BranchEqual, MemReadEn,MemtoReg, ALUOp,MemWriteEn, RegWriteEn,ALUSrc, Jump, BranchNotEqual);
 
 
-         
+         if (nopSel){
          next_IDEx.opCode=opCode;
          next_IDEx.RegDst=RegDst;
          next_IDEx.BranchEqual=BranchEqual; 
@@ -561,43 +689,127 @@ int main(){
          next_IDEx.Eximm=Eximm;
          next_IDEx.funct=functionField;
          next_IDEx.shamnt=shamt;
+         }else{
+         next_IDEx.RegDst=0;
+         next_IDEx.BranchEqual=0; 
+         next_IDEx.MemReadEn=0;
+         next_IDEx.MemtoReg=0;
+         next_IDEx.MemWriteEn=0;
+         next_IDEx.RegWriteEn=0;
+         next_IDEx.ALUSrc=0; 
+         next_IDEx.Jump=0;
+         next_IDEx.BranchNotEqual=0;    
+         next_IDEx.ALUOp=0;
+
+         IDEx.RegDst=0;
+         IDEx.BranchEqual=0; 
+         IDEx.MemReadEn=0;
+         IDEx.MemtoReg=0;
+         IDEx.MemWriteEn=0;
+         IDEx.RegWriteEn=0;
+         IDEx.ALUSrc=0; 
+         IDEx.Jump=0;
+         IDEx.BranchNotEqual=0;    
+         IDEx.ALUOp=0;
+
+         }
+
 
 
          //excute
 
-         
-
-
-
-       
-
+        
+            
+        
+        bitset<32>A;
+        bitset<32>B;
         
 
+        bitset<2>ForwardA;
+        bitset<2>ForwardB;
+        forwardingUnit(IDEx.rs,IDEx.rt,EXMEM.rd,MEMRB.rd, EXMEM.RegWrite,MEMRB.RegWrite, ForwardA, ForwardB); 
+        bitset<32>WBDATA;
+        if (MEMRB.MemtoReg){
+            WBDATA=MEMRB.memData;
+        }else{
+            WBDATA=MEMRB.ALUresult;
+
+        }
+        if (ForwardA == bitset<2>("00")) {
+            A = IDEx.ReadData1; // If ForwardA is 00, a = rs
+        } else if (ForwardA == bitset<2>("01")) {
+            A = WBDATA ; // If ForwardA is 01, a = rs
+        } else if (ForwardA == bitset<2>("10")) {
+            A =EXMEM.ALURESULT ; // If ForwardA is 10, a = rss
+        }
+        if (ForwardB == bitset<2>("00")) {
+            B = IDEx.ReadData2 ; // If ForwardA is 00, a = rs
+        } else if (ForwardB == bitset<2>("01")) {
+            B = WBDATA; // If ForwardA is 01, a = rs
+        } else if (ForwardB == bitset<2>("10")) {
+            B = EXMEM.ALURESULT ; // If ForwardA is 10, a = rss
+
+        }
+
+    if (IDEx.ALUSrc){
+        B=IDEx.Eximm;
+
+    }
+    bitset<4> opSel;
+    bool JumpReg;
+    ALUcontrol( IDEx.ALUOp,IDEx.funct,JumpReg,opSel);         
+
+    
+    bitset<32>res= alu( A,B, opSel,IDEx.shamnt);
+    
+    next_EXMEM.RegWrite=IDEx.RegWriteEn;
+    next_EXMEM.MemReadEn=IDEx.MemReadEn;
+    next_EXMEM.MemWriteEn=IDEx.MemWriteEn; 
+    next_EXMEM.rd=IDEx.rd;
+    next_EXMEM.rt=IDEx.rt;
+    next_EXMEM.MemtoReg=IDEx.MemtoReg;
+    next_EXMEM.RegDst=IDEx.RegDst;
+    next_EXMEM.ALURESULT=res; 
+    next_EXMEM.ReadData2=IDEx.ReadData2;
+
+    //mem stage (the wrting only happends on the new_mem/New_Rf)
+    bitset<32>data;
+    bitset<6> address = EXMEM.ALURESULT.to_ulong() & 0x3F;
+    if (EXMEM.MemWriteEn){
+        next_DATA_MEM.write(address,EXMEM.ReadData2);
         
+    }else if (EXMEM.MemReadEn){
+           data= DATA_MEM.read(address);
+    }
 
+    next_MEMRB.RegWrite=EXMEM.RegWrite;
+    next_MEMRB.rd=EXMEM.rd;
+    next_MEMRB.RegDst=EXMEM.RegDst;
+    next_MEMRB.rt=EXMEM.rt;
+    next_MEMRB.MemtoReg=EXMEM.MemtoReg;
+    next_MEMRB.memData=data;
+    next_MEMRB.ALUresult=EXMEM.ALURESULT;
 
+    //write back
 
-        
+    bitset<32> wbdata=0;
+    if (MEMRB.MemtoReg){
+        wbdata=MEMRB.memData;
+    }else{
+       wbdata=MEMRB.ALUresult; 
+    }
+    bitset<5> wbadress=0;
+    if (MEMRB.RegDst){
+        wbadress=MEMRB.rd;
 
+    }else{
+        wbadress=MEMRB.rt;
+    }
+    if (MEMRB.RegWrite){
+        next_Rfile.write(wbadress,wbdata);
 
+    }
 
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
 
         pc=next_pc;
         IFID=next_IFID;
