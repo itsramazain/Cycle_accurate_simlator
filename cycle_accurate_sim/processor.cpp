@@ -15,19 +15,6 @@ const int DATA_WIDTH = 32;
 const int SEL_WIDTH = 4;
 
 
-const uint8_t _ADD = 0b0000;
-const uint8_t _SUB = 0b0001;
-const uint8_t _AND = 0b0010;
-const uint8_t _OR = 0b0011;
-const uint8_t _SLT = 0b0100;
-const uint8_t _XOR = 0b0101;
-const uint8_t _NOR = 0b0110;
-const uint8_t _SLL = 0b0111;
-const uint8_t _SRL = 0b1000;
-const uint8_t _SGT = 0b1001;
-const uint8_t _DONTCARE = 0b11111;
-
-
 // Define constants for the opcode and funct codes
 const uint8_t _RType = 0x0;
 const uint8_t _addi = 0x8;
@@ -41,6 +28,19 @@ const uint8_t _andi = 0xc;
 const uint8_t _slti = 0xa;
 const uint8_t _jump = 0x2;
 const uint8_t _jumpandlink = 0x3;
+
+// Define constants for ALU operations (opSel)
+const uint8_t _ADD = 0b0000;
+const uint8_t _SUB = 0b0001;
+const uint8_t _AND = 0b0010;
+const uint8_t _OR = 0b0011;
+const uint8_t _SLT = 0b0100;
+const uint8_t _XOR = 0b0101;
+const uint8_t _NOR = 0b0110;
+const uint8_t _SLL = 0b0111;
+const uint8_t _SRL = 0b1000;
+const uint8_t _SGT = 0b1001;
+const uint8_t _DONTCARE = 0b11111;
 
 // Define constants for ALU operations (opSel)
 // Define constants for ALU operations (opSel)
@@ -245,8 +245,7 @@ std::bitset<DATA_WIDTH> alu(
      std::bitset<DATA_WIDTH> operand1,
      std::bitset<DATA_WIDTH> operand2,
      std::bitset<SEL_WIDTH> opSel,
-    std::bitset<5> shamt,
-    bool& zero
+    std::bitset<5> shamt
 ) {
     std::bitset<DATA_WIDTH> result;
 
@@ -627,7 +626,13 @@ void printState(
     bool Sgt,
     bool Slt,
     std::bitset<4> opSel,
-    const std::string filename
+    const std::string filename,
+    bitset<32>ALUin1,
+    bitset<32>ALUin2,
+    bitset<2>ForwordA,
+    bitset<2>ForwordB
+    
+
 ) {
     // Open file in append mode
     std::ofstream logFile(filename, std::ios::app);
@@ -682,6 +687,10 @@ void printState(
     logFile << "ALUResult: 0x" << exmem.ALUResult.to_ulong() << std::endl;
     logFile << "rtData: 0x" << exmem.rtData.to_ulong() << std::endl;
     logFile << "Instruction: 0x" << exmem.instruction.to_ulong() << std::endl;
+    logFile << "aluin1: 0x" << ALUin1<< std::endl;
+    logFile << "aluin2: 0x" << ALUin2<< std::endl;
+    logFile << "forwordA: 0x" << ForwordA<< std::endl;
+    logFile << "forwordB: 0x" << ForwordB<< std::endl;
 
     // Log MEMWB stage
     logFile << "\nMEMWB Stage:\n";
@@ -867,7 +876,7 @@ int main(){
     bitset<6>imm6;
     bitset<16> imm;
 
-    std::ofstream clearFile("logfile2.txt", std::ios::trunc);
+    std::ofstream clearFile("pipe.log", std::ios::trunc);
         if (!clearFile.is_open()) {
             std::cerr << "Error: Could not open logfile2.txt for clearing." << std::endl;
             return 1;
@@ -904,7 +913,7 @@ int main(){
         printState(Rfile, DATA_MEM, pc, IFID, IDEX, EXMEM, MEMWB, i,
                opCode, funct, RegDst, Link, BranchEqual, MemReadEn, MemtoReg,
                MemWriteEn, RegWriteEn, ALUSrc, Jump, BranchNotEqual, JumpReg,
-               Sgt, Slt, opSel, "pipe.log");
+               Sgt, Slt, opSel, "pipe.log",ALUin2,ALUin1, EXForwardA, EXForwardB);
         
         forwardingUnitID(
         MEMWB.RegWriteEn, MEMWB.writeRegister,
@@ -1005,12 +1014,13 @@ int main(){
         bitset<16> imm = IFID.instruction.to_ulong() & 0xFFFF;      // Bits 15:0
         bitset<6> funct = IFID.instruction.to_ulong() & 0x3F;       // Bits 5:0
         bitset<6> jump_address = (instruction_IFID.to_ulong() & 0x3F); // Bits 5:0
-
+        
         controlUnit(opCode, funct, RegDst, Link, BranchEqual, MemReadEn, MemtoReg,
                 MemWriteEn, RegWriteEn, ALUSrc, Jump, BranchNotEqual, JumpReg, Sgt, Slt, opSel);
 
         readData1=Rfile.readRS(rs);
-        readData2=Rfile.readRS(rt);
+        readData2=Rfile.readRT(rt);
+        
 
         forwardingUnitID(
         MEMWB.RegWriteEn, MEMWB.writeRegister,
@@ -1037,9 +1047,13 @@ int main(){
            
         }
 
+        
+        
+
         //get the right value for reg
         if (IDForwardB==0b00){
              rtData=readData2;
+            
         }else if (IDForwardB==0b01){
             rtData=writeData;
         }else if (IDForwardB==0b10){
@@ -1069,6 +1083,8 @@ int main(){
             writeRegister=0b11111;
 
         }
+        
+        
 
 
 
@@ -1085,7 +1101,6 @@ int main(){
         next_IDEX.Link = Link;
         next_IDEX.Sgt = Sgt;
         next_IDEX.Slt = Slt;
-
         next_IDEX.PCPlus1 = IFID.PCPlus1;
         next_IDEX.rs = rs;
         next_IDEX.rt = rt;
@@ -1096,8 +1111,11 @@ int main(){
         next_IDEX.extImm = extImm;
         next_IDEX.opSel = opSel;
         next_IDEX.instruction = IFID.instruction;
+        
 
+        
 
+        
         if(nopSel){
         next_IDEX.MemtoReg = 0;
         next_IDEX.RegWriteEn = 0;
@@ -1110,7 +1128,7 @@ int main(){
         next_IDEX.Sgt = 0;
         next_IDEX.Slt = 0;
         }
-
+        
         //excute stage
 
          EX_Forwarding(
@@ -1118,6 +1136,10 @@ int main(){
         EXMEM.RegWriteEn, EXMEM.writeRegister,
         IDEX.rs, IDEX.rt,
         EXForwardA, EXForwardB);
+
+
+
+       
         
 
         if (MEMWB.MemtoReg){
@@ -1135,47 +1157,75 @@ int main(){
         }else if (EXForwardA==0b10){
             ALUin1=EXMEM.ALUResult;
         }
+        
 
-
+        bitset<32>FWDrtData;
+        
 
         //get the right value for reg
         if (EXForwardB==0b00){
-             ALUin2=IDEX.rtData;
+             FWDrtData=IDEX.rtData;
         }else if (EXForwardB==0b01){
-            ALUin2=writeData;
+            FWDrtData=writeData;
         } else if (EXForwardB==0b10){
-            ALUin2=EXMEM.ALUResult;
+            FWDrtData=EXMEM.ALUResult;
         }
+        
 
         if (IDEX.ALUSrc){
             ALUin2=IDEX.extImm;
-        }
+        }else{
+            ALUin2=FWDrtData;
 
-        _ALUResult = alu(ALUin1, ALUin2, opSel, shamt, zero);
+        }
+        cout<<i<<endl;
+
+        cout<<"EXForwardA"<<EXForwardA<<endl;
+        cout<<"EXForwardB"<<EXForwardB<<endl;
+        cout<<ALUin1<<endl;
+        cout<<ALUin2<<endl;
+        cout<<IDEX.RegWriteEn<<endl;
+        cout<<IDEX.writeRegister<<endl;
+        
+
+        _ALUResult = alu(ALUin1, ALUin2, IDEX.opSel, IDEX.shamt);
+        
+        
         if (IDEX.Link){
             _ALUResult=FWDvalue;
 
         }
+        
+        
         next_EXMEM.MemtoReg=IDEX.MemtoReg;
         next_EXMEM.RegWriteEn=IDEX.RegWriteEn;
         next_EXMEM.MemReadEn=IDEX.MemReadEn;
         next_EXMEM.MemWriteEn=IDEX.MemWriteEn;
         next_EXMEM.writeRegister=IDEX.writeRegister;
         next_EXMEM.ALUResult=_ALUResult;
-        next_EXMEM.rtData=IDEX.rtData;
+        next_EXMEM.rtData=FWDrtData;
         next_EXMEM.instruction=IDEX.instruction;
+
+        
 
         //mem
 
         bitset<6>address = EXMEM.ALUResult.to_ulong() & 0x3F;
+        
+         
+
         if (EXMEM.MemWriteEn){
-            next_DATA_MEM.write(address,readData2);
+            next_DATA_MEM.write(address,EXMEM.rtData);
         
         }
         if (EXMEM.MemReadEn){
            memoryReadData= DATA_MEM.read(address);
+           /*cout<<address<<endl;
+           cout<<memoryReadData<<endl;*/
+           
+           
         }
-
+        
         next_MEMWB.MemtoReg= EXMEM.MemtoReg;
         next_MEMWB.RegWriteEn=EXMEM.RegWriteEn;
         next_MEMWB.writeRegister=EXMEM.writeRegister;
@@ -1183,68 +1233,24 @@ int main(){
         next_MEMWB.ALUResult=EXMEM.ALUResult;
         next_MEMWB.memoryReadData=memoryReadData;
         next_MEMWB.instruction=EXMEM.instruction;
-
-
         //wb
-
+        
         if (MEMWB.MemtoReg){
             writeData=MEMWB.memoryReadData;
+            
+            
         }else{
-            writeData=MEMWB.ALUResult; 
-        }
-        cout<<writeData<<endl;
+            writeData=MEMWB.ALUResult;
+
+        } 
+        
+        
+        
 
         if (MEMWB.RegWriteEn){
             next_Rfile.write(MEMWB.writeRegister,writeData);
 
         }
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-        
-        
-
-
-
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-
-
-
-
-
-
-
 
 
         pc=next_pc;
@@ -1270,6 +1276,7 @@ int main(){
 
 
 }
+
 
 
 
