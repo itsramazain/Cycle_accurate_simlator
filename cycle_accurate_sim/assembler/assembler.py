@@ -5,171 +5,114 @@ The hex instructions are then written to a file in the format of a memory initia
 
 instructions are read from a file called instructions.txt
 instructions are not case sensitive (i.e. ADDI, addi, Addi are all valid)
-a blank line is considered a NOP instruction (i.e. 0x00000000) to avoid errors
 
 The script can handle the following instruction formats:
 R-Format: add, sub, and, or, slt, nor, sll, srl, jr, xor
 I-Format: addi, lw, sw, beq, bne, ori, xori, andi, slti
 J-Format: j, jal
 
-addresses and immediate values are in decimal or hexadecimal format
+addresses and immediate values are valid in decimal or hexadecimal format
 
+Updates:
+    - Added support for .data section
+    - Added support for pseudo instructions bgez and bltz
+    - Added support for labels in the .data section
+    - Added support for lw and sw instructions with labels
+    - Added support for comments in the input file
 """
-def convert_to_binary(asm_instruction):
-    if asm_instruction.lower().replace(' ' , '') == "nop":
-        return "00000000"
-    # R-Format Instructions
-    R_Format = ["add", "sub", "and", "or", "slt","nor", "sll", "srl", "jr","xor","sgt"]
-    # I-Format Instructions
-    I_Format = ["addi", "lw", "sw", "beq","bne","ori","xori","andi","slti"]
-    # J-Format Instructions
-    J_Format = ["j", "jal"]
-    ''' 
-    we have two pseudo instructions: BLTZ and BGEZ
-        BGEZ: bgez $rs, offset  # opcode: 1100000                   
-        BLTZ: bltz $rs, offset  # opcode: 100000
-    '''
-    Pseudo = ["bgez", "bltz"]
 
-    funct_codes = {
-        "add": "100000",
-        "sub": "100010",
-        "and": "100100",
-        "or":  "100101",
-        "slt": "101010",
-        "nor": "100111",
-        "sll": "000000",
-        "srl": "000010",
-        "jr":  "001000",
-        "xor": "100110",
-        "sgt": "101011" # opcode given randomly because sgt is not included in MIPS green sheet
-    }
-    I_opcode = {
-        "addi": "001000",
-        "lw":   "100011",
-        "sw":   "101011",
-        "beq":  "000100",
-        "bne":  "000101",
-        "ori":  "001101",
-        "xori": "001110",
-        "andi": "001100",
-        "slti": "001010"
-    }
-    J_opcode = {
-        "j":    "000010",
-        "jal":  "000011"
-    }
-    Psuedo_opcode = {
-        "bgez": "110000",
-        "bltz": "100000"
-    }
-    opcode = "000000"
-    rs = "00000"
-    rt = "00000"
-    rd = "00000"
-    shamt = "00000"
-    funct = ""
-    imm = ""
-    result = ""
-    address = "00000000000000000000000000"
-    # seperate the instruction according to the first space only
-
-    inst = asm_instruction.split(' ',1)
-    #print("inst: ", inst)
-    regs = inst[1].split(',')
-    # if there is whitespace in the instruction, remove it from the list
-    regs = [reg.replace(' ', '') for reg in regs]
-
-    #print("regs: ", regs)
-    # Pseudo instructions
-    if inst[0] in Pseudo:
-        opcode = Psuedo_opcode[inst[0]]
-        rs = format(int(regs[0][1:]), '05b') # rs is 5 bits
-        imm_value = int(regs[1], 0) # immediate value is 16 bits
-        #to handle negative numbers
-        if imm_value < 0:
-            imm = format((1 << 16) + imm_value, '016b')
-        else:
-            imm = format(imm_value, '016b')
-        result = opcode + rs + "00000" + imm # added 00000 to match the 32 bits
-        return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
-    # I-Format instructions
-    if inst[0] in I_Format:
-        opcode = I_opcode[inst[0]]
-        if inst[0] == "lw" or inst[0] == "sw":
-            rt = format(int(regs[0][1:]), '05b')
-            imm = format(int(regs[1].split('(')[0]), '016b')
-            rs = format(int(regs[1].split('(')[1][1:-1]), '05b')
-            result = opcode + rs + rt + imm
-            return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
-        if inst[0] == "beq" or inst[0] == "bne":
-            rs = format(int(regs[0][1:]), '05b')
-            rt = format(int(regs[1][1:]), '05b')
-        else:
-            rs = format(int(regs[1][1:]), '05b')
-            rt = format(int(regs[0][1:]), '05b')
-        imm_value = int(regs[2], 0)
-        #to handle negative numbers
-        if imm_value < 0:
-            imm = format((1 << 16) + imm_value, '016b')
-        else:
-            imm = format(imm_value, '016b')
-        result = opcode + rs + rt + imm
-        return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
-
-    # J-Format instructions (can handle hex or decimal addresses)
-    elif inst[0] in J_Format:
-        address = format(int(inst[1], 0), '026b')
-        result = J_opcode[inst[0]] + address
-        return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
-    # R-Format instructions
-    elif inst[0] in R_Format:
-        if inst[0] == "sll" or inst[0] == "srl":
-            rd = format(int(regs[0][1:]), '05b')
-            rt = format(int(regs[1][1:]), '05b')
-            shamt = format(int(regs[2], 0), '05b')
-        elif inst[0] == "jr":
-            rs = format(int(regs[0][1:]), '05b')
-        else:
-            rd = format(int(regs[0][1:]), '05b')
-            rs = format(int(regs[1][1:]), '05b')
-            rt = format(int(regs[2][1:]), '05b')
-        funct = funct_codes[inst[0]]
-        #print(f'opcode: {opcode}, rs: {rs}, rt: {rt}, rd: {rd}, shamt: {shamt}, funct: {funct}')
-        result = opcode + rs + rt + rd + shamt + funct
-        return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
+from conversion import convert_to_binary, handle_pseudo
 
 
+symbol_table = {}  # Store variables and their memory addresses
+symbol_instructions = {}  # Store instructions with labels
+data_memory = []   # Store the parsed data values
+data_address = 0   # Start address of the .data section
+text_address = 0   # Instruction memory address for .text section
+instructions = []  # Store text instructions
+data_segment = True  # Flag to determine if we're in the .data section
 
-instructions = []
-
-# Open the file and read line by line
+# Read the input file
 with open('instructions.txt', 'r') as file:
-    # Read each line in the file and strip newline characters
-    instructions = [line.strip() for line in file]
+    for line in file:
+        line = line.strip().split('#')[0].lower()  # Remove comments and trim spaces
+        if not line:
+            continue
+        if line.startswith('.data'):
+            data_segment = True
+            continue
+        elif line.startswith('.text'):
+            data_segment = False
+            continue
+        if data_segment:
+            # Handle the .data section
+            if ':' in line:
+                label, value_str = line.split(':')
+                label = label.strip()
+                values = value_str.split('.word')[1].strip().split(',')
+                values = [int(v, 0) for v in values]  # Convert values to integers
+                symbol_table[label] = data_address
+                for value in values:
+                    data_memory.append(value)
+                    data_address += 1  # Increment by 1 word (4 bytes per word)
+        else: # text segment
+            if ':' in line:
+                label, instruction = line.split(':')
+                label = label.strip()
 
-# the mif file is in the previous directory
+                # trim spaces in instruction
+                symbol_instructions[label] = text_address
+                if instruction.replace(' ', '') != '':
+                    instructions.append(instruction.strip())
+                    text_address += 1
+            else:
+                instructions.append(line.strip())
+                text_address += 1
+
+
+instructions = handle_pseudo(instructions)
+
+# Generate Data Memory Initialization File
+
+with open('../dataMemoryInitializationFile.mif', 'w') as data_mif_file:
+    data_mif_file.write("WIDTH=32;\n")
+    data_mif_file.write("DEPTH=256;\n")
+    data_mif_file.write("ADDRESS_RADIX=UNS;\n")
+    data_mif_file.write("DATA_RADIX=UNS;\n\n")
+    data_mif_file.write("CONTENT BEGIN\n")
+    for i, value in enumerate(data_memory):
+        data_mif_file.write(f"\t{i} : {value};\n")
+    # Fill remaining memory with zeros
+    if data_address < 256:
+        data_mif_file.write(f"\t[{data_address}..255] : 0;\n")
+    data_mif_file.write("END;\n")
+
+# Generate Instruction Memory Initialization File
 with open('../instructionMemoryInitializationFile.mif', 'w') as mif_file:
     mif_file.write("WIDTH=32;\n")
     mif_file.write("DEPTH=64;\n")
     mif_file.write("ADDRESS_RADIX=UNS;\n")
     mif_file.write("DATA_RADIX=HEX;\n\n")
     mif_file.write("CONTENT BEGIN\n")
-    i = 0
-    for _, instruction in enumerate(instructions):
-
-        # split to instruction and comment
-        instruction = instruction.split('#')[0].lower()
-
-        if instruction.replace(' ', '') == "": continue
-
+    for i, instruction in enumerate(instructions):
+        # Replace variable with address for load/store
+        if 'lw' in instruction or 'sw' in instruction:
+            for symbol in symbol_table:
+                if symbol in instruction:
+                    instruction = instruction.replace(symbol, str(symbol_table[symbol]))
+                    break
+        if 'j' in instruction or 'jal' in instruction:
+            for symbol in symbol_instructions:
+                if symbol in instruction:
+                    instruction = instruction.replace(symbol, str(symbol_instructions[symbol]))
+                    break
+        if 'beq' in instruction or 'bne' in instruction:
+            for symbol in symbol_instructions:
+                if symbol in instruction:
+                    instruction = instruction.replace(symbol, str(symbol_instructions[symbol]-i-1))
         binary_instruction = convert_to_binary(instruction)
         mif_file.write(f"\t{i} : {binary_instruction};\n")
-        i += 1
-    # Fill the rest of the memory with NOP instructions
-    mif_file.write(f"\t[{i}..63] : 00000000000000000000000000000000;\n")
+    mif_file.write(f"\t[{len(instructions)}..63] : 00000000;\n")
     mif_file.write("END;\n")
-    print("Instructions converted successfully!")
 
-
-
+print("Data and Instructions converted successfully!")

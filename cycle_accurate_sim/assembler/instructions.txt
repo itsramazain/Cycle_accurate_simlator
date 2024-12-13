@@ -1,33 +1,59 @@
-# pseudo instuctions
-    BGEZ $4, 2
-    BLTZ $4, 2
-    nop
-    nop
+# This is a comment
+# this file represents the instructions format
 
-# Independent Instructions
-    ADDI $4, $0, 0x5eef       # $4 = 10
-    addi $5, $0, 15       # $5 = 15
-    nop                   # No operation (stall)
-    nop                   # No operation (stall)
-    add $6, $4, $5        # $6 = $4 + $5
+.data
+value: .word 0x0f
+array: .word 0xA, 0xB, 0xC
+var: .word 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF
+.text
 
+    #case 1: done (flush addi)
+       # beq $0,$0, 7 # done
+       # addi $2, $0, 4
 
-# Dependent Instructions (Data Hazards)
-    addi $4, $0, 10       # $4 = 10
-    addi $5, $0, 15       # $5 = 15
-    add $6, $4, $5        # $6 = $4 + $5
-    sub $7, $6, $5        # $7 = $6 - $5 (depends on $6)
-    and $8, $7, $4
+    # case 2: done (dual forwarding)
+        # addi $2, $0, 4
+        # addi $3, $0, 5
+        # add $4, $2, $3
 
-# Load-Use Hazard
-    lw $9, 0($4)
-    add $10, $9, $5       # $10 = $9 + $5 (depends on $9)
+    #case 3: done (infinity loop )
+        #jal 0x05
+        #nop  # $31 = 0x01
+        #nop
+        #nop
+        #nop
+        #JR $31
 
-# Branch Hazard (Control Hazard)
-    addi $4, $0, 5
-    addi $5, $0, 5
-    beq $4, $5, 2
-    addi $6, $0, 20
+    #case 4: done
+       # addi $4,$0,11
+       # addi $2,$0,10
+       # sw $2,0($4)
+       # lw $3,0($4)
 
+    #case 5: done (stall beq)
+    #    addi $4, $0, 4
+    #    addi $2,$0,4
+    #    beq $4,$2, 13
 
+    #case 6: done (consecutive writes)
+       # addi $4,$0,2
+       # addi $4,$4,2
+       # add $4,$4,$4
 
+# PSEUDO INSTRUCTIONS
+
+    # case 1:  done  (taken bgez)
+       # addi $2, $0, 4
+       # bgez $2, 4
+
+    # case 2:  (non taken bgez) not done
+        # addi $2, $0, -4
+        # bgez $2, 4
+
+    # case 3:  (taken bltz) not done
+         addi $2, $0, -4
+         bltz $2, 4
+
+    # case 4: done (non taken bltz)
+        # addi $2, $0, 4
+        # bltz $2, 4
