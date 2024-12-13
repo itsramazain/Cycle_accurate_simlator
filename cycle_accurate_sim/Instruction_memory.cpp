@@ -10,6 +10,7 @@ using namespace std;
 class Instruction_Memory {
 private:
     array<bitset<32>, 64> mem;
+    int Num_of_inst;
 
 public:
     Instruction_Memory() {
@@ -27,9 +28,19 @@ public:
             IMEMcount++;
         }
 
+        if (line.find("num_of_inst=") != string::npos) {
+            // Extract the number after "num_of_inst="
+            size_t pos = line.find("=");
+            if (pos != string::npos) {
+                Num_of_inst = stoi(line.substr(pos + 1));
+            }
+        }
+
         inputFile.close();
     }
-
+    int num(){
+        return Num_of_inst;
+    }
      void printMemory() {
         ofstream outputFile("instmemory_output.txt");
 
@@ -49,6 +60,17 @@ public:
             cerr << "Error: Address out of bounds" << endl;
             return bitset<32>();
         }
+    }
+
+    bool stop(){
+         for (int i = 0; i < 63; i++) { 
+        bitset<32> zero(0); 
+
+       
+        if (mem[i] == zero && mem[i + 1] == zero) {
+            return 0; 
+        }
+    }
     }
 };
 
