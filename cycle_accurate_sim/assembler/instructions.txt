@@ -52,7 +52,9 @@ var: .word 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD,
 
     # case 3:  (taken bltz) not done
          addi $2, $0, -4
-         bltz $2, 4
+         bltz $2, loop
+nop
+loop:
 
     # case 4: done (non taken bltz)
         # addi $2, $0, 4

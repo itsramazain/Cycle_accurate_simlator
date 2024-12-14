@@ -23,21 +23,7 @@ def convert_to_binary(asm_instruction):
     I_Format = ["addi", "lw", "sw", "beq", "bne", "ori", "xori", "andi", "slti"]
     # J-Format Instructions
     J_Format = ["j", "jal"]
-    ''' 
-    we have two pseudo instructions: BLTZ and BGEZ
-        BGEZ: bgez $rs, offset  # opcode: 1100000                   
-        BLTZ: bltz $rs, offset  # opcode: 100000
-    '''
-    """
-    Pseudo = ["bgez", "bltz"]
 
-    Psuedo_opcode = {
-        "bgez": "110000",
-        "bltz": "100000"
-    }
-
-
-    """
     funct_codes = {
         "add": "100000",
         "sub": "100010",
@@ -86,19 +72,7 @@ def convert_to_binary(asm_instruction):
 
     # print("regs: ", regs)
     # Pseudo instructions
-    """    
-        if inst[0] in Pseudo:
-        opcode = Psuedo_opcode[inst[0]]
-        rs = format(int(regs[0][1:]), '05b') # rs is 5 bits
-        imm_value = int(regs[1], 0) # immediate value is 16 bits
-        #to handle negative numbers
-        if imm_value < 0:
-            imm = format((1 << 16) + imm_value, '016b')
-        else:
-            imm = format(imm_value, '016b')
-        result = opcode + rs + "00000" + imm # added 00000 to match the 32 bits
-        return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
-    """
+
 
     # I-Format instructions
     if inst[0] in I_Format:
@@ -146,47 +120,4 @@ def convert_to_binary(asm_instruction):
         result = opcode + rs + rt + rd + shamt + funct
         return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
 
-
-def hex_to_binary_32bit(hex_string):
-    """
-    Converts a hexadecimal string to its 32-bit binary representation.
-
-    Args:
-        hex_string (str): The hexadecimal string to convert.
-
-    Returns:
-        str: A 32-bit binary representation of the hexadecimal string.
-    """
-    # Remove any leading "0x" if present
-    hex_string = hex_string.strip().lower().replace("0x", "")
-
-    # Convert to binary and remove the '0b' prefix
-    binary_string = bin(int(hex_string, 16))[2:]
-
-    # Pad or truncate the binary string to make it 32 bits
-    binary_string = binary_string.zfill(32)[-32:]
-
-    return binary_string
-
-
-def write_binary_to_file(binary_list, output_file, j):
-    """
-    Writes a list of 32-bit binary strings to a file with 64 lines.
-    Fills the remaining lines with zeros if the list has fewer than 64 items.
-
-    Args:
-        binary_list (list): A list of 32-bit binary strings.
-        output_file (str): Path to the output file.
-    """
-    # Ensure the binary list has 64 lines, filling with zeros if necessary
-    while len(binary_list) < 64:
-        binary_list.append('00000000000000000000000000000000')
-
-    # Truncate the list to exactly 64 entries (in case it's longer)
-    binary_list = binary_list[:64]
-
-    # Write the binary strings to the file
-    with open(output_file, 'w') as file:
-        file.write('\n'.join(binary_list))
-        file.write(f"\nnum_of_inst={j}")
 
