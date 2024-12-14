@@ -21,7 +21,7 @@ Updates:
     - Added support for comments in the input file
 """
 
-from conversion import convert_to_binary, handle_pseudo
+from conversion import *
 
 
 symbol_table = {}  # Store variables and their memory addresses
@@ -62,15 +62,28 @@ with open('instructions.txt', 'r') as file:
 
                 # trim spaces in instruction
                 symbol_instructions[label] = text_address
+
                 if instruction.replace(' ', '') != '':
                     instructions.append(instruction.strip())
                     text_address += 1
             else:
-                instructions.append(line.strip())
-                text_address += 1
+                if "bgez" in line or "bltz" in line:
+                    inst = line.split(' ', 1)
+                    if inst[0] == "bgez":
+                        text_address += 2
+                        rs, imm = inst[1].split(',')
+                        instructions.append(f"sgt $29,$0,{rs}")
+                        instructions.append(f"beq $29,$0,{imm}")
 
+                    elif inst[0] == "bltz":
+                        text_address += 2
+                        rs, imm = inst[1].split(',')
+                        instructions.append(f"slt $29,{rs},$0")
+                        instructions.append(f"bne $29,$0,{imm}")
+                else:
+                    instructions.append(line.strip())
+                    text_address += 1
 
-instructions = handle_pseudo(instructions)
 
 # Generate Data Memory Initialization File
 
@@ -90,7 +103,7 @@ with open('../dataMemoryInitializationFile.mif', 'w') as data_mif_file:
 # Generate Instruction Memory Initialization File
 with open('../instructionMemoryInitializationFile.mif', 'w') as mif_file:
     mif_file.write("WIDTH=32;\n")
-    mif_file.write("DEPTH=64;\n")
+    mif_file.write("DEPTH=256;\n")
     mif_file.write("ADDRESS_RADIX=UNS;\n")
     mif_file.write("DATA_RADIX=HEX;\n\n")
     mif_file.write("CONTENT BEGIN\n")
@@ -106,13 +119,15 @@ with open('../instructionMemoryInitializationFile.mif', 'w') as mif_file:
                 if symbol in instruction:
                     instruction = instruction.replace(symbol, str(symbol_instructions[symbol]))
                     break
+
         if 'beq' in instruction or 'bne' in instruction:
             for symbol in symbol_instructions:
                 if symbol in instruction:
                     instruction = instruction.replace(symbol, str(symbol_instructions[symbol]-i-1))
+
         binary_instruction = convert_to_binary(instruction)
         mif_file.write(f"\t{i} : {binary_instruction};\n")
-    mif_file.write(f"\t[{len(instructions)}..63] : 00000000;\n")
+    mif_file.write(f"\t[{len(instructions)}..255] : 00000000;\n")
     mif_file.write("END;\n")
 
 print("Data and Instructions converted successfully!")

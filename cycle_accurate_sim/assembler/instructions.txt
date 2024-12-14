@@ -1,61 +1,29 @@
-# This is a comment
-# this file represents the instructions format
-
 .data
-value: .word 0x0f
-array: .word 0xA, 0xB, 0xC
-var: .word 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF
+value: .word 0x5                   # sample data for loading
+
 .text
+main:
+    # Immediate instructions to initialize registers
+    ADDI $1, $0, 0xA
+    ORI $2, $0, 0xB
+    XORI $3, $0, 0xC
 
-    #case 1: done (flush addi)
-       # beq $0,$0, 7 # done
-       # addi $2, $0, 4
+    # Basic ALU operations
+    ADD $4, $1, $2
+    SUB $5, $4, $3
+    AND $6, $1, $2
+    OR $7, $2, $3
+    NOR $8, $2, $3
+    XOR $9, $1, $2
 
-    # case 2: done (dual forwarding)
-        # addi $2, $0, 4
-        # addi $3, $0, 5
-        # add $4, $2, $3
+    # Comparison operations
+    SLT $10, $1, $2
+    SGT $11, $3, $1
 
-    #case 3: done (infinity loop )
-        #jal 0x05
-        #nop  # $31 = 0x01
-        #nop
-        #nop
-        #nop
-        #JR $31
+    # Shift operations
+    SLL $12, $1, 2
+    SRL $13, $2, 1
 
-    #case 4: done
-       # addi $4,$0,11
-       # addi $2,$0,10
-       # sw $2,0($4)
-       # lw $3,0($4)
-
-    #case 5: done (stall beq)
-    #    addi $4, $0, 4
-    #    addi $2,$0,4
-    #    beq $4,$2, 13
-
-    #case 6: done (consecutive writes)
-       # addi $4,$0,2
-       # addi $4,$4,2
-       # add $4,$4,$4
-
-# PSEUDO INSTRUCTIONS
-
-    # case 1:  done  (taken bgez)
-       # addi $2, $0, 4
-       # bgez $2, 4
-
-    # case 2:  (non taken bgez) not done
-        # addi $2, $0, -4
-        # bgez $2, 4
-
-    # case 3:  (taken bltz) not done
-         addi $2, $0, -4
-         bltz $2, loop
-nop
-loop:
-
-    # case 4: done (non taken bltz)
-        # addi $2, $0, 4
-        # bltz $2, 4
+    # Load and store word instructions
+    LW $14, 0($0)
+    SW $4, 0($0)

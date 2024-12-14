@@ -1,21 +1,8 @@
-def handle_pseudo(instructions):
-    replaced_instructions = []
-    for instruction in instructions:
-        inst = instruction.split(' ', 1)
-        if inst[0] == "bgez":
-            rs, imm = inst[1].split(',')
-            replaced_instructions.append(f"sgt $1,$0,{rs}")
-            replaced_instructions.append(f"beq $1,$0,{imm}")
-        elif inst[0] == "bltz":
-            rs, imm = inst[1].split(',')
-            replaced_instructions.append(f"slt $1,{rs},$0")
-            replaced_instructions.append(f"bne $1,$0,{imm}")
-        else:
-            replaced_instructions.append(instruction)
-    return replaced_instructions
+
 def convert_to_binary(asm_instruction):
-    print("asm_instruction: ", asm_instruction)
+    print(asm_instruction, end=' --> ')
     if asm_instruction.lower().replace(' ', '') == "nop":
+        print("00000000", end='\n')
         return "00000000"
     # R-Format Instructions
     R_Format = ["add", "sub", "and", "or", "slt", "nor", "sll", "srl", "jr", "xor", "sgt"]
@@ -79,9 +66,10 @@ def convert_to_binary(asm_instruction):
         opcode = I_opcode[inst[0]]
         if inst[0] == "lw" or inst[0] == "sw":
             rt = format(int(regs[0][1:]), '05b')
-            imm = format(int(regs[1].split('(')[0]), '016b')
-            rs = format(int(regs[1].split('(')[1][1:-1]), '05b')
+            imm = format(int(regs[1].split('(')[0],0), '016b')
+            rs = format(int(regs[1].split('(')[1][1:-1],0), '05b')
             result = opcode + rs + rt + imm
+            print(format(int(result, 2), '08X'), end='\n')
             return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
         if inst[0] == "beq" or inst[0] == "bne":
             rs = format(int(regs[0][1:]), '05b')
@@ -96,12 +84,16 @@ def convert_to_binary(asm_instruction):
         else:
             imm = format(imm_value, '016b')
         result = opcode + rs + rt + imm
+        print(format(int(result, 2), '08X'), end='\n')
+
         return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
 
     # J-Format instructions (can handle hex or decimal addresses)
     elif inst[0] in J_Format:
         address = format(int(inst[1], 0), '026b')
         result = J_opcode[inst[0]] + address
+        print(format(int(result, 2), '08X'), end='\n')
+
         return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
     # R-Format instructions
     elif inst[0] in R_Format:
@@ -118,6 +110,7 @@ def convert_to_binary(asm_instruction):
         funct = funct_codes[inst[0]]
         # print(f'opcode: {opcode}, rs: {rs}, rt: {rt}, rd: {rd}, shamt: {shamt}, funct: {funct}')
         result = opcode + rs + rt + rd + shamt + funct
+        print(format(int(result, 2), '08X'), end='\n')
         return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
 
 
