@@ -239,6 +239,47 @@ void controlUnit(
     }
 }
 
+#include <bitset>
+#include <cstdint>
+#include <iostream>
+
+#include <bitset>
+#include <cstdint>
+#include <iostream>
+
+// Helper function to convert std::bitset<32> to signed 32-bit integer
+int32_t toSignedInt(const std::bitset<32>& data) {
+    uint32_t unsignedValue = data.to_ulong();
+    if (data[31]) { // Check the sign bit
+        return static_cast<int32_t>(unsignedValue - (1UL << 31) - (1UL << 31));
+    }
+    return static_cast<int32_t>(unsignedValue);
+}
+
+// Function to check if rsData is greater than a given input
+std::bitset<32> isGreaterThanInput(
+    std::bitset<32> rsData, std::bitset<32> inputData
+) {
+    int32_t rsSigned = toSignedInt(rsData);
+    int32_t inputSigned = toSignedInt(inputData);
+
+    return std::bitset<32>(rsSigned > inputSigned ? 1 : 0);
+}
+
+// Function to check if rsData is less than a given input
+std::bitset<32> isLessThanInput(
+    std::bitset<32> rsData, std::bitset<32> inputData
+) {
+    int32_t rsSigned = toSignedInt(rsData);
+    int32_t inputSigned = toSignedInt(inputData);
+
+    return std::bitset<32>(rsSigned < inputSigned ? 1 : 0);
+}
+
+
+
+
+
 
 // ALU function
 std::bitset<DATA_WIDTH> alu(
@@ -277,8 +318,9 @@ std::bitset<DATA_WIDTH> alu(
             result = operand1 | operand2;
             break;
         case 0b0100: // SLT
-            result = (operand1.to_ulong() < operand2.to_ulong()) ? 1 : 0;
             
+            result = isLessThanInput(operand1, operand2);
+            /*cout<<"99999999999999999999999"<<result<<endl;*/
             break;
         case 0b0101: // XOR
             result = operand1 ^ operand2;
@@ -287,15 +329,15 @@ std::bitset<DATA_WIDTH> alu(
             result = ~(operand1 | operand2);
             break;
         case 0b0111: // SLL (Shift Left Logical)
-            result = operand1 << shiftAmount;
+            result = operand2 << shiftAmount;
             break;
         case 0b1000: // SRL (Shift Right Logical)
-            result = operand1 >> shiftAmount;
+            result = operand2 >> shiftAmount;
             break;
         case 0b1001: { // SGT (Set Greater Than)
             int32_t op1 = static_cast<int32_t>(operand1.to_ulong());
             int32_t op2 = static_cast<int32_t>(operand2.to_ulong());
-            result = (op1 > op2) ? 1 : 0;
+            result = isGreaterThanInput(operand1, operand2);
             break;
         }
         default:
@@ -313,9 +355,22 @@ void branchDetectionUnit(
     bool JumpReg, bool Jump,
     bool& willBranch, bool& willJump
 ) {
+    willBranch=false;
+    willJump=false;
+
     // Calculate willBranch and willJump based on the inputs
-    willBranch = ((~zero && BranchNotEqual) || (zero && BranchEqual)) ? true : false;
-    willJump = (Jump || JumpReg) ? true : false;
+    cout<<"========================================================";
+    cout<<"zero"<<zero<<endl;
+    cout<<"BranchNotEqual"<<BranchNotEqual<<endl;
+    cout<<"BranchEqual"<<BranchEqual<<endl;
+    cout<<"========================================================";
+    if ((!zero && BranchNotEqual) || (zero && BranchEqual)) {
+        willBranch=true;
+    }
+    cout<<"willBranch"<<willBranch<<endl;
+    if (Jump || JumpReg) {
+        willJump=true;
+    }
 }
 
 void comparator(
@@ -339,9 +394,12 @@ void comparator(
         rtSigned -= (1 << 31); // Correct adjustment for negative numbers
     }
 
+    cout<<"rsSigned"<<rsSigned<<endl;
+    cout<<"rtSigned"<<rtSigned<<endl;
     // Perform signed comparison
     if (rsSigned == rtSigned) {
         zero = true;
+        
     } else if (rsSigned < rtSigned) {
         lessthan = true;
     } else {
@@ -402,86 +460,63 @@ void EX_Forwarding(
 }
 
 
-
-
-
-
 void HazardDetectionUnit(
-    bitset<5> rs, bitset<5> rt, bitset<5> writeRegister_EXMEM, bitset<5> writeRegister_IDEX,bool Slt,bool Sgt,
-    bool Slt_IDEX, bool Sgt_IDEX, bool MemReadEn_EXMEM, bool MemReadEn_IDEX,
+    std::bitset<5> rs, std::bitset<5> rt, std::bitset<5> writeRegister_EXMEM, std::bitset<5> writeRegister_IDEX,
+    bool Slt, bool Sgt, bool Slt_IDEX, bool Sgt_IDEX, bool MemReadEn_EXMEM, bool MemReadEn_IDEX,
     bool JumpReg, bool BranchEqual, bool Jump, bool BranchNotEqual, 
-    bool willBranch, bool willJump,
-    bool &PCwrite, bool &Write_IFID, bool &nopSel, bool &flush
+    bool willBranch, bool willJump, bool HasStalled_IDEX,
+    bool &PCwrite, bool &Write_IFID, bool &nopSel, bool &flush, bool &HasStalled
 ) {
-    bool CannotResolveBranch, CannotResolveJumpReg;
-
-    // Resolve branch and jump conditions
-    bool CannotResolveBranchCondition1 = ((rs == writeRegister_IDEX || rt == writeRegister_IDEX) &&
-                                          writeRegister_IDEX != 0 && !(Slt_IDEX || Sgt_IDEX));
-
-    bool CannotResolveBranchCondition2 = ((rs == writeRegister_EXMEM || rt == writeRegister_EXMEM) &&
-                                          writeRegister_EXMEM != 0 && MemReadEn_EXMEM);
-
-    CannotResolveBranch = CannotResolveBranchCondition1 || CannotResolveBranchCondition2;
-
-    
-    bool CannotResolveJumpRegCondition1 = (rs == writeRegister_IDEX && writeRegister_IDEX != 0 &&
-                                           !(Slt_IDEX || Sgt_IDEX));
-
-    bool CannotResolveJumpRegCondition2 = (rs == writeRegister_EXMEM && writeRegister_EXMEM != 0 &&
-                                           MemReadEn_EXMEM);
-    
-    
-    CannotResolveJumpReg = CannotResolveJumpRegCondition1 || CannotResolveJumpRegCondition2;
-    bool FlushCondition = ((willBranch && !CannotResolveBranch) || (JumpReg && !CannotResolveJumpReg) || Jump);
-
-    
-
-    
-
-    
-   
-   
-
-    // Stall conditions
-    bool FirstStallCondition = (MemReadEn_IDEX && (writeRegister_IDEX != 0) &&
-                                ((writeRegister_IDEX == rs) || (writeRegister_IDEX == rt)));
-
-    bool SecondStallCondition = ((writeRegister_IDEX == rs || writeRegister_IDEX == rt) &&
-                                 writeRegister_IDEX != 0 && (BranchEqual || BranchNotEqual || JumpReg) &&
-                                 !(Slt_IDEX || Sgt_IDEX));
-
-    bool ThirdStallCondition = (MemReadEn_EXMEM && writeRegister_EXMEM != 0 &&
-                                ((writeRegister_EXMEM == rs) || (writeRegister_EXMEM == rt)) &&
-                                (BranchEqual || BranchNotEqual || JumpReg));
-
-    bool FourthStallCondition = (Slt || Sgt);
-
-    bool StallCondition = FirstStallCondition || SecondStallCondition || ThirdStallCondition ||FourthStallCondition;
-
-    // Combine conditions into a 2-bit value
-    uint8_t Conditions = (StallCondition << 1) | FlushCondition;
-
     // Initialize outputs
     PCwrite = true;
     Write_IFID = true;
     nopSel = false;
     flush = false;
+    HasStalled = false;
 
-    // Case statement for different conditions
+    // Internal signals
+    bool StallCondition = false;
+
+    // Resolve flush condition
+    
+
+    // Load-use stall condition
+    bool FirstStallCondition = MemReadEn_IDEX &&
+                               (writeRegister_IDEX.to_ulong() != 0) &&
+                               ((writeRegister_IDEX == rs) || (writeRegister_IDEX == rt));
+
+    // Cannot resolve branch stall condition
+    /*cout<<"**********"<<endl;
+    cout<<""<<endl;
+    cout<<"**********"<<endl;*/
+    bool SecondStallCondition = ((writeRegister_IDEX == rs) || (writeRegister_IDEX == rt)) &&
+                                 (writeRegister_IDEX.to_ulong() != 0) &&
+                                 ((BranchEqual || BranchNotEqual || JumpReg || Slt || Sgt) &&
+                                  (!Slt_IDEX && !Sgt_IDEX));
+
+    cout<<"**********"<<endl;
+    cout<<"SecondStallCondition"<<SecondStallCondition<<endl;
+    cout<<"**********"<<endl;
+
+    // Stall logic
+    if (FirstStallCondition) {
+        StallCondition = true;
+    } else if (SecondStallCondition && !HasStalled_IDEX) {
+        StallCondition = true;
+        HasStalled = true;
+    }
+    bool FlushCondition = ((willBranch || JumpReg || Jump) && !StallCondition);
+
+    // Combine conditions into a 2-bit value
+    uint8_t Conditions = (StallCondition << 1) | FlushCondition;
+
+    // Control signal updates based on conditions
     switch (Conditions) {
         case 0b10: // Stall
             PCwrite = false;
             Write_IFID = false;
             nopSel = true;
             flush = false;
-            break;
-
-        case 0b11: // Priority for Flush
-            PCwrite = true;
-            Write_IFID = true;
-            nopSel = false;
-            flush = true;
             break;
 
         case 0b01: // Flush
@@ -491,7 +526,7 @@ void HazardDetectionUnit(
             flush = true;
             break;
 
-        default: // No operation
+        default: // No Stall or Flush
             PCwrite = true;
             Write_IFID = true;
             nopSel = false;
@@ -594,7 +629,7 @@ struct IDEX_reg {
     bool Jump=0; 
     bool willBranch=0;
     bool willJump=0;
-
+    bool HasStalled;
 
     bitset<6> PCPlus1=0;
     bitset<5> rs=0;
@@ -644,13 +679,6 @@ void printState(
     RF registerFile,
     Data_memory dataMemory,
     PC pc,
-    IFID_reg ifid,
-    IDEX_reg idex,
-    EXMEM_reg exmem,
-    MEMWB_reg memwb,
-    int cycle,
-    std::bitset<6> opCode,
-    std::bitset<6> funct,
     bool RegDst,
     bool Link,
     bool BranchEqual,
@@ -665,12 +693,21 @@ void printState(
     bool Sgt,
     bool Slt,
     std::bitset<4> opSel,
+    std::bitset<2> IDFORWORDA,
+    std::bitset<2> IDROWORDB,
+    std::bitset<2> EXFORWORDA,
+    std::bitset<2> EXFORWORDB,
+    bool nopsel,
+    bool willJump,
+    std::bitset<32> IDEX_instruction,
+    std::bitset<32> IFID_instruction,
+    bool flush,
+    bool willbranch,
+    std::bitset<32> instruction,
     const std::string filename,
-    bitset<32>ALUin1,
-    bitset<32>ALUin2,
-    bitset<2>ForwordA,
-    bitset<2>ForwordB
-    
+    int cycle,
+    bitset<32>rsData,
+    bitset<32>rtData
 
 ) {
     // Open file in append mode
@@ -684,87 +721,51 @@ void printState(
 
     logFile << "==================== Cycle State #" << cycle << " ====================\n";
 
-    // Log PC and instruction
-    logFile << "PC: 0x" << std::hex << pc.pc.to_ulong() << std::endl;
+    // Log instructions
+    logFile << "pc: " <<std::hex  <<(pc.pc).to_ulong()<< "\n";
+    logFile << "Instruction: 0x" <<  std::hex <<instruction.to_ulong() << "\n";
+    logFile << "IFID Instruction: 0x" << std::hex << IFID_instruction.to_ulong() << "\n";
+    logFile << "IDEX Instruction: 0x" << std::hex << IDEX_instruction.to_ulong() << "\n";
 
-    // Log IFID stage
-    logFile << "\nIFID Stage:\n";
-    logFile << "Flush: " << ifid.flush << std::endl;
-    logFile << "PCPlus1: 0x" << ifid.PCPlus1.to_ulong() << std::endl;
-    logFile << "Instruction: 0x" << ifid.instruction.to_ulong() << std::endl;
+    // Log nop and flush signals
+    logFile << "NOP Signal: " << nopsel << "\n";
+    logFile << "Flush Signal: " << flush << "\n";
 
-    // Log IDEX stage
-    logFile << "\nIDEX Stage:\n";
-    logFile << "MemtoReg: " << idex.MemtoReg << std::endl;
-    logFile << "RegWriteEn: " << idex.RegWriteEn << std::endl;
-    logFile << "MemReadEn: " << idex.MemReadEn << std::endl;
-    logFile << "MemWriteEn: " << idex.MemWriteEn << std::endl;
-    logFile << "lessthan: " << idex.lessthan << std::endl;
-    logFile << "greaterthan: " << idex.greaterthan << std::endl;
-    logFile << "ALUSrc: " << idex.ALUSrc << std::endl;
-    logFile << "Link: " << idex.Link << std::endl;
-    logFile << "Sgt: " << idex.Sgt << std::endl;
-    logFile << "Slt: " << idex.Slt << std::endl;
-    logFile << "PCPlus1: 0x" << idex.PCPlus1.to_ulong() << std::endl;
-    logFile << "rs: 0x" << idex.rs.to_ulong() << std::endl;
-    logFile << "rt: 0x" << idex.rt.to_ulong() << std::endl;
-    logFile << "writeRegister: 0x" << idex.writeRegister.to_ulong() << std::endl;
-    logFile << "shamt: 0x" << idex.shamt.to_ulong() << std::endl;
-    logFile << "rsData: 0x" << idex.rsData.to_ulong() << std::endl;
-    logFile << "rtData: 0x" << idex.rtData.to_ulong() << std::endl;
-    logFile << "extImm: 0x" << idex.extImm.to_ulong() << std::endl;
-    logFile << "opSel: 0x" << idex.opSel.to_ulong() << std::endl;
-    logFile << "Instruction: 0x" << idex.instruction.to_ulong() << std::endl;
+    // Log forwarding signals
+    logFile << "ID Forward A: 0x" << IDFORWORDA << "\n";
+    logFile << "ID Forward B: 0x" << IDROWORDB << "\n";
+    logFile << "EX Forward A: 0x" << EXFORWORDA << "\n";
+    logFile << "EX Forward B: 0x" << EXFORWORDB << "\n";
+    logFile<<"rsdata"<<rsData<< "\n";
+    logFile<<"rtdata"<<rtData<< "\n";
 
-    // Log EXMEM stage
-    logFile << "\nEXMEM Stage:\n";
-    logFile << "MemtoReg: " << exmem.MemtoReg << std::endl;
-    logFile << "RegWriteEn: " << exmem.RegWriteEn << std::endl;
-    logFile << "MemReadEn: " << exmem.MemReadEn << std::endl;
-    logFile << "MemWriteEn: " << exmem.MemWriteEn << std::endl;
-    logFile << "writeRegister: 0x" << exmem.writeRegister.to_ulong() << std::endl;
-    logFile << "ALUResult: 0x" << exmem.ALUResult.to_ulong() << std::endl;
-    logFile << "rtData: 0x" << exmem.rtData.to_ulong() << std::endl;
-    logFile << "Instruction: 0x" << exmem.instruction.to_ulong() << std::endl;
-    logFile << "aluin1: 0x" << ALUin1<< std::endl;
-    logFile << "aluin2: 0x" << ALUin2<< std::endl;
-    logFile << "forwordA: 0x" << ForwordA<< std::endl;
-    logFile << "forwordB: 0x" << ForwordB<< std::endl;
-
-    // Log MEMWB stage
-    logFile << "\nMEMWB Stage:\n";
-    logFile << "MemtoReg: " << memwb.MemtoReg << std::endl;
-    logFile << "RegWriteEn: " << memwb.RegWriteEn << std::endl;
-    logFile << "writeRegister: 0x" << memwb.writeRegister.to_ulong() << std::endl;
-    logFile << "ALUResult: 0x" << memwb.ALUResult.to_ulong() << std::endl;
-    logFile << "memoryReadData: 0x" << memwb.memoryReadData.to_ulong() << std::endl;
-    logFile << "Instruction: 0x" << memwb.instruction.to_ulong() << std::endl;
-
-    // Log additional control signals
+    // Log control signals
     logFile << "\nControl Signals:\n";
-    logFile << "opCode: 0x" << opCode.to_ulong() << std::endl;
-    logFile << "funct: 0x" << funct.to_ulong() << std::endl;
-    logFile << "RegDst: " << RegDst << std::endl;
-    logFile << "Link: " << Link << std::endl;
-    logFile << "BranchEqual: " << BranchEqual << std::endl;
-    logFile << "MemReadEn: " << MemReadEn << std::endl;
-    logFile << "MemtoReg: " << MemtoReg << std::endl;
-    logFile << "MemWriteEn: " << MemWriteEn << std::endl;
-    logFile << "RegWriteEn: " << RegWriteEn << std::endl;
-    logFile << "ALUSrc: " << ALUSrc << std::endl;
-    logFile << "Jump: " << Jump << std::endl;
-    logFile << "BranchNotEqual: " << BranchNotEqual << std::endl;
-    logFile << "JumpReg: " << JumpReg << std::endl;
-    logFile << "Sgt: " << Sgt << std::endl;
-    logFile << "Slt: " << Slt << std::endl;
-    logFile << "opSel: 0x" << opSel.to_ulong() << std::endl;
+    logFile << "RegDst: " << RegDst << "\n";
+    logFile << "Link: " << Link << "\n";
+    logFile << "BranchEqual: " << BranchEqual << "\n";
+    logFile << "MemReadEn: " << MemReadEn << "\n";
+    logFile << "MemtoReg: " << MemtoReg << "\n";
+    logFile << "MemWriteEn: " << MemWriteEn << "\n";
+    logFile << "RegWriteEn: " << RegWriteEn << "\n";
+    logFile << "ALUSrc: " << ALUSrc << "\n";
+    logFile << "Jump: " << Jump << "\n";
+    logFile << "BranchNotEqual: " << BranchNotEqual << "\n";
+    logFile << "JumpReg: " << JumpReg << "\n";
+    logFile << "Sgt: " << Sgt << "\n";
+    logFile << "Slt: " << Slt << "\n";
+    logFile << "opSel: 0x" << opSel.to_ulong() << "\n";
+
+    // Log additional signals
+    logFile << "Will Jump: " << willJump << "\n";
+    logFile << "Will Branch: " << willbranch << "\n";
 
     // Log register file contents
     logFile << "\nRegister File Contents:\n";
     for (int regIdx = 0; regIdx < 32; ++regIdx) {
         logFile << "R[" << regIdx << "]: "
-                << registerFile.readRS(std::bitset<5>(regIdx))
-                << std::endl;
+                << std::hex << registerFile.readRS(std::bitset<5>(regIdx)).to_ulong()
+                << "\n";
     }
 
     // Log data memory contents
@@ -772,12 +773,13 @@ void printState(
     for (int memIdx = 0; memIdx < 64; ++memIdx) {
         logFile << "Mem[" << memIdx << "]: "
                 << dataMemory.read(std::bitset<6>(memIdx))
-                << std::endl;
+                << "\n";
     }
 
     logFile << "=====================================================\n";
     logFile.close();
 }
+
 
 
 
@@ -810,12 +812,13 @@ int main(){
     bitset<32> ALUResult_EXMEM = 0;
     bitset<32> ALUResult_MEMWB = 0;
     bitset<32> memoryReadData_MEMWB = 0;
+    bool HasStalled=0;
     
 
     // 6-bit wires
     bitset<6> opCode = 0;
     bitset<6> funct = 0;
-    bitset<6> FetchPC = 0;
+    bitset<6> FetchPC =0;
     bitset<6> nextPC = 0;
     bitset<6> PCPlus1 = 0;
     bitset<6> branch_address = 0;
@@ -915,6 +918,7 @@ int main(){
     bool Will_jump;
     bitset<6>imm6;
     bitset<6>address;
+    bitset<6>PCC;
     bitset<16> imm;
     bitset<32>FWDrtData;
    
@@ -954,6 +958,7 @@ int main(){
     IDEX_reg IDEX,next_IDEX;
     IFID_reg IFID,next_IFID;
     MEMWB_reg MEMWB,next_MEMWB;
+    
 
 
     PC pc,next_pc;
@@ -965,90 +970,29 @@ int main(){
     RF next_Rfile;
     int num_ofinst=INSTRUCTION_MEM.num();
 
-
-    while (i<20){
-        
-        cout<<"cycle"<<i<<endl;
-        cout<<"nopSel"<<nopSel<<endl;
-        //ftech
-        //before we can fetch anything we have 
-        //to check if the instruction that is 
-        //in the id stage in the pervius stage wasnt 
-        //a beq and taken
-        //another thing that might happen is jal and jr this means that im supposed to take the value from the forwording unit
-
-        
-        printState(Rfile, DATA_MEM, pc, IFID, IDEX, EXMEM, MEMWB, i,
-               opCode, funct, RegDst, Link, BranchEqual, MemReadEn, MemtoReg,
-               MemWriteEn, RegWriteEn, ALUSrc, Jump, BranchNotEqual, JumpReg,
-               Sgt, Slt, opSel, "pipe.log",ALUin2,ALUin1, EXForwardA, EXForwardB);
-
-        
-        std::ofstream reg("regfileoutput.log", std::ios::app);
-
-        //at the end dump the values of the memory and register file in a file
-        reg<<"reg content at cycle: "<<i<<endl;
-            for (int regIdx = 0; regIdx < 32; ++regIdx) {
-        reg << Rfile.readRS(std::bitset<5>(regIdx))
-                << std::endl;
-        }
     
-        std::ofstream mem("memout.log", std::ios::app);
-        mem<<"mem content at cycle: "<<i<<endl;
-            for (int memIdx = 0; memIdx < 64; ++memIdx) {
-        mem << DATA_MEM.read(std::bitset<6>(memIdx))
-                << std::endl;
-    }
-        
-        
-        
-        PCPlus1=bitset<6>(pc.pc.to_ulong() + 1);
-        nextPC=PCPlus1;
-        if (willBranch){
-            nextPC=branch_address;
-            cout<<"-----------"<<branch_address<<endl;
-            
-            /*cout<<branch_address<<endl;*/
-        }
-        if (willJump){
-            cout<<"-----------"<<jump_address<<endl;
-            
-            nextPC=jump_address;
+    
+    FetchPC =pc.pc;
+    PCC=pc.pc;
 
-        }
-        if (JumpReg){
-            nextPC=rsData.to_ulong() & 0b111111;
-        }
+    while (true){
+        cout<<"---------------------------------------------------------------------"<<endl;
+        cout<<"pcvalue"<<pc.pc<<endl;
         
-
-
-        if (PCwrite){
-            FetchPC=nextPC;
-        }else{
-            
-            FetchPC=pc.pc;
-        }
         
-        instruction=INSTRUCTION_MEM.read(FetchPC);
         
-        cout<<"instruction"<<instruction<<endl;
-        /*cout<<"instruction"<<instruction<<endl;
-        cout<<"FetchPC"<<FetchPC<<endl;*/
        
-        if (flush){
-           /* cout<<instruction<<endl;*/
-           /*cout<<FetchPC<<endl;
-           cout<<instruction<<endl;*/
-           cout<<"it was flushed at cycle:"<<i<<endl;
-            IFID.instruction=0;
-        }
+        
 
-        //update 
-        if (PCwrite){
-            
-            next_pc.pc=nextPC;
-        }
-        cout<<"FetchPC"<<FetchPC<<endl;
+        
+        //fetch
+
+         
+
+        instruction=INSTRUCTION_MEM.read(PCC);
+
+
+
         /*cout<<i<<endl;
         cout<<"willBranch"<<willBranch<<endl;
         cout<<"FetchPC"<<FetchPC<<endl;
@@ -1056,13 +1000,22 @@ int main(){
         cout<<"branch_address"<<branch_address<<endl;
         cout<<"flush"<<flush<<endl;
         cout<<"nopsel"<<nopSel<<endl;*/
+        
+
+
+
+        /*cout<<"pc.pc"<<pc.pc<<endl;*/
+       
+        /*cout<<"FetchPC"<<FetchPC<<endl;*/
+        /*cout<<"instruction:"<<instruction<<endl;*/
 
         
-        next_IFID.instruction=instruction;
-        next_IFID.PCPlus1=PCPlus1;
-        next_IFID.flush=flush;
-
+        
         //decode
+        /*cout<<"IDEX.instruction"<<IFID.instruction<<endl;
+        cout<<"IFIDin"<<IFID.instruction<<endl;*/
+        
+        
 
         opCode = (IFID.instruction >> 26).to_ulong();     // Bits 31:26
         rs = (IFID.instruction>> 21).to_ulong() & 0x1F;  // Bits 25:21
@@ -1075,6 +1028,7 @@ int main(){
         
         controlUnit(opCode, funct, RegDst, Link, BranchEqual, MemReadEn, MemtoReg,
                 MemWriteEn, RegWriteEn, ALUSrc, Jump, BranchNotEqual, JumpReg, Sgt, Slt, opSel);
+                
 
         
 
@@ -1094,7 +1048,7 @@ int main(){
         
 
         if (MEMWB.RegWriteEn){
-            Rfile.write(MEMWB.writeRegister,writeData);
+            next_Rfile.write(MEMWB.writeRegister,writeData);
 
         }
         
@@ -1121,8 +1075,8 @@ int main(){
 
         fwdValue(IDEX.Link, IDEX.Slt, IDEX.Sgt, IDEX.PCPlus1, IDEX.lessthan, IDEX.greaterthan, FWDvalue);
 
-        cout<<"IDForwardA"<<IDForwardA<<endl;
-        cout<<"IDForwardB"<<IDForwardB<<endl;
+        /*cout<<"IDForwardA"<<IDForwardA<<endl;
+        cout<<"IDForwardB"<<IDForwardB<<endl;*/
 
 
 
@@ -1155,37 +1109,93 @@ int main(){
         }
 
         comparator(rsData, rtData, zero, lessthan, greaterthan);
-        cout<<"lessthan"<<endl;
-        cout<<"greaterthan"<<endl;
-        cout<<"zero"<<endl;
-        branchDetectionUnit(BranchEqual, BranchNotEqual, zero, JumpReg, Jump, willBranch, willJump);
-        extImm=signExtendImmediate(IFID.instruction);
-        imm6=IFID.instruction.to_ulong() & 0b111111;
-        branch_address=calculateTarget(PCPlus1,imm6);
-        jump_address = (IFID.instruction.to_ulong() & 0x3F); // Bits 5:0
-
+        /*cout<<"lessthan"<<endl;
+        cout<<"greaterthan"<<endl;*/
         
-
+        branchDetectionUnit(BranchEqual, BranchNotEqual, zero, JumpReg, Jump, willBranch, willJump);
+        /*cout<<"willbranch"<<willBranch<<endl;*/
         HazardDetectionUnit(
         rs, rt, EXMEM.writeRegister, IDEX.writeRegister,
         IDEX.Slt,IDEX.Sgt,Sgt,Slt, EXMEM.MemReadEn, IDEX.MemReadEn,
         JumpReg, BranchEqual, Jump, BranchNotEqual,
-        willBranch, willJump,
-        PCwrite, Write_IFID, nopSel, flush);
-        cout<<"willBranch"<<willBranch<<endl;
-        cout<<"IFIDinstruction"<<IFID.instruction<<endl;
+        willBranch, willJump,IDEX.HasStalled,
+        PCwrite, Write_IFID, nopSel, flush,HasStalled);
+        
+        
+        extImm=signExtendImmediate(IFID.instruction);
+        imm6=IFID.instruction.to_ulong() & 0b111111;
+        branch_address=calculateTarget(IFID.PCPlus1,imm6);
+        jump_address = (IFID.instruction.to_ulong() & 0x3F); // Bits 5:0
 
 
-        /*cout<<i<<endl;
-        cout<<"willBranch"<<willBranch<<endl;
-        cout<<"FetchPC"<<FetchPC<<endl;
-        cout<<"IFIDinstruction"<<IFID.instruction<<endl;
-        cout<<"branch_address"<<branch_address<<endl;
-        cout<<"flush"<<flush<<endl;
-        cout<<"nopsel"<<nopSel<<endl;*/
+        PCPlus1=bitset<6>(pc.pc.to_ulong() + 1);
+        nextPC=PCPlus1;
+
+         if (willBranch){
+            nextPC=branch_address;
+            cout<<"-----------"<<branch_address<<endl;
+            cout<<"pcwirte"<<PCwrite<<endl;
+            cout<<"zero"<<zero<<endl;
+            cout<<"IDEX.instruction"<<IFID.instruction<<endl;
+            
+            /*cout<<branch_address<<endl;*/
+        }
+        if (willJump){
+            /*cout<<"-----------"<<jump_address<<endl;*/
+            
+            nextPC=jump_address;
+
+        }
+        if (JumpReg){
+            nextPC=rsData.to_ulong() & 0b111111;
+        }
+
+        
+
+        if (PCwrite){
+            PCC=nextPC;
+        }else{
+            cout<<"stalled at"<<IFID.instruction<<endl;
+            PCC=pc.pc;
+        }
+
+        next_pc.pc=PCC;
+        if (Write_IFID){
         next_IFID.instruction=instruction;
         next_IFID.PCPlus1=PCPlus1;
         next_IFID.flush=flush;
+        }
+
+        if (flush){
+           /* cout<<instruction<<endl;*/
+           /*cout<<FetchPC<<endl;
+           cout<<instruction<<endl;*/
+           cout<<"it was flushed at cycle:"<<i<<endl;
+            next_IFID.instruction=0;
+        }
+        
+
+        
+       
+        
+        /*cout<<"cycle"<<i<<endl;
+        cout<<"nopSel"<<nopSel<<endl;
+        cout<<"willbranch"<<willBranch<<endl;
+        cout<<"instruction"<<instruction<<endl;*/
+       
+        
+        //update 
+        
+        
+
+        
+        
+
+        
+
+        
+
+
 
         /*if (IFID.instruction==0b00010000000000000000000000000010){
             cout<<"idstage"<<endl;
@@ -1224,6 +1234,7 @@ int main(){
 
           // Assign values to struct fields
         next_IDEX.MemtoReg = MemtoReg;
+        next_IDEX.HasStalled=HasStalled; 
         next_IDEX.flush=flush;
         next_IDEX.RegWriteEn = RegWriteEn;
         next_IDEX.MemReadEn = MemReadEn;
@@ -1297,9 +1308,12 @@ int main(){
              ALUin1=IDEX.rsData;
         }else if (EXForwardA==0b01){
             ALUin1=writeData;
+            
         }else if (EXForwardA==0b10){
             ALUin1=EXMEM.ALUResult;
         }
+
+        /*cout<<"ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp nopsel"<<opSel<<endl;*/
         
 
        
@@ -1323,15 +1337,16 @@ int main(){
 
         }
 
-        cout<<"EXForwardA"<<EXForwardA<<endl;
-        cout<<"EXForwardB"<<EXForwardB<<endl;
+        /*cout<<"EXForwardA"<<EXForwardA<<endl;
+        cout<<"EXForwardB"<<EXForwardB<<endl;*/
 
         
         
         
 
         _ALUResult = alu(ALUin1, ALUin2, IDEX.opSel, IDEX.shamt);
-        cout<<_ALUResult<<endl;
+        
+        
         /*if(IDEX.MemReadEn){
         cout<<IDEX.instruction<<endl;
         cout<<IDEX.rs<<endl;
@@ -1368,8 +1383,9 @@ int main(){
          
 
         if (EXMEM.MemWriteEn){
-            /*cout<<address<<endl;
-            cout<<EXMEM.rtData<<endl;*/
+            cout<<"wote to mem:";
+            cout<<address<<endl;
+            cout<<EXMEM.rtData<<endl;
             DATA_MEM.write(address,EXMEM.rtData);
 
             
@@ -1378,6 +1394,9 @@ int main(){
         if (EXMEM.MemReadEn){
 
            memoryReadData= DATA_MEM.read(address);
+           if (address==0b001100){
+            cout<<"read data:"<<memoryReadData<<endl;
+           }
             /*cout<<address<<endl;
             cout<<memoryReadData<<endl;*/
            
@@ -1406,18 +1425,74 @@ int main(){
         
 
         if (MEMWB.RegWriteEn){
-            Rfile.write(MEMWB.writeRegister,writeData);
+            /*cout<<"__________________________write reg and write data"<<MEMWB.writeRegister<<endl<<writeData<<endl;*/
+            next_Rfile.write(MEMWB.writeRegister,writeData);
+            if (MEMWB.MemtoReg){
+                cout<<"wrote at:"<<endl;
+             cout<<MEMWB.writeRegister<<"data"<<endl<<writeData<<endl;   
+            }
+
 
         }
 
+        
+        printState(
+        Rfile,
+        DATA_MEM,
+        pc,
+        RegDst,
+        Link,
+        BranchEqual,
+        MemReadEn,
+        MemtoReg,
+        MemWriteEn,
+        RegWriteEn,
+        ALUSrc,
+        Jump,
+        BranchNotEqual,
+        JumpReg,
+        Sgt,
+        Slt,
+        opSel,
+        IDForwardA,
+        IDForwardB,
+        EXForwardA,
+        EXForwardB,
+        nopSel,
+        willJump,
+        IDEX.instruction,
+        IFID.instruction,
+        flush,
+        willBranch,
+        instruction,
+        "pipe.log",
+        i,
+        rsData,
+        rtData
+    );
+
+        std::ofstream reg("regfileoutput.log", std::ios::app);
+
+        //at the end dump the values of the memory and register file in a file
+        reg<<"reg content at cycle: "<<i<<endl;
+            for (int regIdx = 0; regIdx < 32; ++regIdx) {
+        reg << Rfile.readRS(std::bitset<5>(regIdx))
+                << std::endl;
+        }
+
+
+
+
 
         pc=next_pc;
-        INSTRUCTION_MEM=next_INSTRUCTION_MEM;
+        Rfile=next_Rfile;
         EXMEM=next_EXMEM;
         IDEX=next_IDEX;
         IFID=next_IFID;
         MEMWB=next_MEMWB;
         i++;
+
+        
 
         
 
@@ -1431,29 +1506,18 @@ int main(){
     
     
     }
-
-    
-    std::ofstream mem("memout.log", std::ios::app);
-    mem <<"num_of_cycles_taken"<<i<<endl;
     
 
+    
+    std::ofstream mem2("memout.log", std::ios::app);
+            for (int memIdx = 0; memIdx < 64; ++memIdx) {
+        mem2 << DATA_MEM.read(std::bitset<6>(memIdx))
+                << std::endl;
+    }
 
+    
 
+    
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
