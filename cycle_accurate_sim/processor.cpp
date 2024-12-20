@@ -1033,8 +1033,17 @@ int main(){
         
 
         
+        writeRegister=rt;
+        if (RegDst){
+            writeRegister=rd;
+        }
+        if(Link){
+            writeRegister=0b11111;
 
+        }
         
+
+
         if (MEMWB.MemtoReg){
             writeData=MEMWB.memoryReadData;
             
@@ -1043,9 +1052,6 @@ int main(){
             writeData=MEMWB.ALUResult;
 
         } 
-        
-        
-        
 
         if (MEMWB.RegWriteEn){
             next_Rfile.write(MEMWB.writeRegister,writeData);
@@ -1055,9 +1061,23 @@ int main(){
         
         
 
+        if (rt==MEMWB.writeRegister){
+            readData2=writeData;
+            cout<<"//////////////////////////////////////////////////////////////////////////////////////////////"<<endl;
+            cout<<"writeData"<<writeData<<endl;
+        }else{
+            readData2=Rfile.readRT(rt);
+        }
         
-        readData1=Rfile.readRS(rs);
-        readData2=Rfile.readRT(rt);
+        if (rs==MEMWB.writeRegister){
+
+            readData1=writeData;
+        }else{
+            readData1=Rfile.readRS(rs);
+        }
+        
+        
+        
 
         
 
@@ -1217,14 +1237,7 @@ int main(){
 
 
         //writeregistervalue
-        writeRegister=rt;
-        if (RegDst){
-            writeRegister=rd;
-        }
-        if(Link){
-            writeRegister=0b11111;
-
-        }
+        
         
         
 
@@ -1386,7 +1399,7 @@ int main(){
             cout<<"wote to mem:";
             cout<<address<<endl;
             cout<<EXMEM.rtData<<endl;
-            DATA_MEM.write(address,EXMEM.rtData);
+            next_DATA_MEM.write(address,EXMEM.rtData);
 
             
         
@@ -1485,6 +1498,7 @@ int main(){
 
 
         pc=next_pc;
+        DATA_MEM=next_DATA_MEM;
         Rfile=next_Rfile;
         EXMEM=next_EXMEM;
         IDEX=next_IDEX;
