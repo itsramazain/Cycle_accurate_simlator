@@ -1,4 +1,3 @@
-
 def convert_to_binary(asm_instruction):
     print(asm_instruction, end=' --> ')
     if asm_instruction.lower().replace(' ', '') == "nop":
@@ -67,7 +66,7 @@ def convert_to_binary(asm_instruction):
         if inst[0] == "lw" or inst[0] == "sw":
             rt = format(int(regs[0][1:]), '05b')
             imm = format(int(regs[1].split('(')[0],0), '016b')
-            rs = format(int(regs[1].split('(')[1][1:-1],0), '05b')
+            rs = format(int(regs[1].split('(')[1][1:-1]), '05b')
             result = opcode + rs + rt + imm
             print(format(int(result, 2), '08X'), end='\n')
             return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
@@ -77,7 +76,7 @@ def convert_to_binary(asm_instruction):
         else:
             rs = format(int(regs[1][1:]), '05b')
             rt = format(int(regs[0][1:]), '05b')
-        imm_value = int(regs[2], 0)
+        imm_value = int(regs[2],0)
         # to handle negative numbers
         if imm_value < 0:
             imm = format((1 << 16) + imm_value, '016b')
@@ -113,4 +112,79 @@ def convert_to_binary(asm_instruction):
         print(format(int(result, 2), '08X'), end='\n')
         return format(int(result, 2), '08X')  # Return hex string without "0x" prefix
 
+
+def decimal_to_32bit_binary(number):
+    """
+    Convert a 32-bit decimal number to a 32-bit binary representation.
+
+    Args:
+        number (int): A decimal number (must be in the range of 32-bit integers).
+
+    Returns:
+        str: A 32-bit binary representation of the number.
+    """
+    if not -2 ** 31 <= number < 2 ** 31:
+        raise ValueError("Number out of range for 32-bit signed integer.")
+
+    # Convert the number to a 32-bit binary string
+    binary_representation = f"{number & 0xFFFFFFFF:032b}"
+    return binary_representation
+
+
+def hex_to_binary_32bit(hex_number):
+    """
+    Converts a 32-bit hexadecimal number to its binary representation.
+
+    Args:
+        hex_number (str): The 32-bit hexadecimal number as a string (e.g., "1A3F").
+
+    Returns:
+        str: The 32-bit binary representation of the hexadecimal number.
+    """
+    # Convert hex to int, then to binary, and ensure it is 32 bits with zfill
+    binary_representation = bin(int(hex_number, 16))[2:].zfill(32)
+    return binary_representation
+
+
+def write_binary_to_file(binary_list, output_file, j):
+    """
+    Writes a list of 32-bit binary strings to a file with 64 lines.
+    Fills the remaining lines with zeros if the list has fewer than 64 items.
+
+    Args:
+        binary_list (list): A list of 32-bit binary strings.
+        output_file (str): Path to the output file.
+    """
+    # Ensure the binary list has 64 lines, filling with zeros if necessary
+    while len(binary_list) < 64:
+        binary_list.append('00000000000000000000000000000000')
+
+    # Truncate the list to exactly 64 entries (in case it's longer)
+    binary_list = binary_list[:64]
+
+    # Write the binary strings to the file
+    with open(output_file, 'w') as file:
+        file.write('\n'.join(binary_list))
+        file.write(f"\nnum_of_inst={j}")
+
+
+def write_binary_to_file2(binary_list, output_file):
+    """
+    Writes a list of 32-bit binary strings to a file with 64 lines.
+    Fills the remaining lines with zeros if the list has fewer than 64 items.
+
+    Args:
+        binary_list (list): A list of 32-bit binary strings.
+        output_file (str): Path to the output file.
+    """
+    # Ensure the binary list has 64 lines, filling with zeros if necessary
+    while len(binary_list) < 64:
+        binary_list.append('00000000000000000000000000000000')
+
+    # Truncate the list to exactly 64 entries (in case it's longer)
+    binary_list = binary_list[:64]
+
+    # Write the binary strings to the file
+    with open(output_file, 'w') as file:
+        file.write('\n'.join(binary_list))
 
